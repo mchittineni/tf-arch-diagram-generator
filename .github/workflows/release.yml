@@ -53,6 +53,27 @@ jobs:
             node bin/cli.js render "$plan" --out "release-artifacts/$(basename "$plan" .plan.json).svg"
           done
 
+      - name: Preflight npm token check
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          len=${#NPM_TOKEN}
+          echo "token length: $len"
+          case "$NPM_TOKEN" in
+            npm_*) echo "token prefix: npm_ (expected granular/automation format)" ;;
+            "")    echo "token prefix: EMPTY — secret is not reaching the job" ;;
+            *)     echo "token prefix: NOT npm_ — unexpected token format" ;;
+          esac
+          stripped=$(printf '%s' "$NPM_TOKEN" | tr -d '[:space:]')
+          if [ "${#stripped}" -ne "$len" ]; then
+            echo "whitespace: token CONTAINS whitespace/newline — re-set the secret"
+          else
+            echo "whitespace: none"
+          fi
+          code=$(curl -s -o /dev/null -w '%{http_code}' \
+            -H "Authorization: Bearer $NPM_TOKEN" https://registry.npmjs.org/-/whoami)
+          echo "registry whoami HTTP status: $code"
+
       - name: Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
