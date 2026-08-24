@@ -133,12 +133,23 @@ function minify(svg) {
   return svg.replace(/>\s+</g, '><').replace(/\s{2,}/g, ' ').trim();
 }
 
+/** Reads a file, returning null when it does not exist (no check-then-read race). */
+function readIfExists(filePath) {
+  try {
+    return fs.readFileSync(filePath, 'utf8');
+  } catch (error) {
+    if (error.code === 'ENOENT') return null;
+    throw error;
+  }
+}
+
 function buildIcon(provider, key, relPath) {
   const sourcePath = path.join(ASSETS_DIR, provider, relPath);
-  if (!fs.existsSync(sourcePath)) {
+  const raw = readIfExists(sourcePath);
+  if (raw === null) {
     throw new Error(`${provider}/${key}: missing asset ${relPath} — run \`npm run icons:update\` first`);
   }
-  let svg = stripMetadata(fs.readFileSync(sourcePath, 'utf8'));
+  let svg = stripMetadata(raw);
   assertNoActiveContent(svg, sourcePath);
   svg = normalizeRoot(svg, sourcePath);
   svg = namespaceIdentifiers(svg, `tfarch-${provider}-${key}`);
@@ -183,7 +194,7 @@ try {
     }
     const outPath = path.join(PROVIDER_DIRS[provider], 'officialIcons.js');
     const next = renderModule(provider, icons, [...sources].sort());
-    const current = fs.existsSync(outPath) ? fs.readFileSync(outPath, 'utf8') : '';
+    const current = readIfExists(outPath) ?? '';
     if (current === next) {
       console.log(`${provider}: up to date (${Object.keys(icons).length} icons)`);
     } else if (check) {
