@@ -1,0 +1,70 @@
+{
+  "name": "tf-arch-diagram-generator",
+  "version": "1.0.0",
+  "description": "Turn any Terraform plan into an interactive cloud architecture diagram \u2014 AWS, Google Cloud and Azure, including multi-cloud plans.",
+  "keywords": [
+    "terraform",
+    "architecture",
+    "diagram",
+    "visualization",
+    "aws",
+    "gcp",
+    "google-cloud",
+    "azure",
+    "infrastructure-as-code",
+    "iac",
+    "svg",
+    "devops",
+    "platform-engineering"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "tf-arch": "bin/cli.js"
+  },
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./providers": "./src/providers/index.js",
+    "./samples": "./src/data/samplePlans.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "dist",
+    "index.html",
+    "vite.config.js",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "dev": "vite --port 5173",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "node --test test/*.test.js",
+    "cli": "node bin/cli.js",
+    "icons:update": "node scripts/fetch-icons.mjs",
+    "icons:check": "node scripts/fetch-icons.mjs --check",
+    "commitlint": "commitlint --from HEAD~1 --to HEAD --verbose",
+    "prepare": "husky",
+    "release": "semantic-release",
+    "security:assets": "node scripts/scan-svg-assets.mjs",
+    "security:audit": "npm audit --omit=dev --audit-level=low",
+    "security": "npm run security:audit && npm run security:assets && node --test test/security.test.js",
+    "test:coverage": "node scripts/check-coverage.mjs"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^21.2.2",
+    "@commitlint/config-conventional": "^21.2.2",
+    "@semantic-release/changelog": "^7.0.0",
+    "@semantic-release/git": "^11.0.1",
+    "husky": "^9.1.7",
+    "jsdom": "^30.0.1",
+    "semantic-release": "^25.0.9",
+    "vite": "^8.2.2"
+  }
+}

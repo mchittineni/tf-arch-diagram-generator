@@ -1,0 +1,41 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# Terraform — never commit real plans or state
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan
+.terraform/
+.terraform.lock.hcl
+plan.json
+!examples/*.plan.json
+
+# Local output
+architecture.svg
+*.local.svg
+
+# Editors & OS
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Logs
+npm-debug.log*
+yarn-error.log*
+*.log
+
+# Env
+.env
+.env.*
+!.env.example
+
+# Release + icon job artifacts
+release-artifacts/
+icon-update.log
+pr-body.md
