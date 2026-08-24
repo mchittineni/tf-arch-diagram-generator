@@ -36,6 +36,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Verify embedded icons match the official assets
+        run: npm run icons:build:check
+
       - name: Build web app
         run: npm run build
 
