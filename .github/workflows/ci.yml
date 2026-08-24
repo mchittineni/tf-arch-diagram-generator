@@ -1,0 +1,59 @@
+name: CI Checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22, 24, 26]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - name: Setup Node.Js {{matrix.node}}
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web app
+        run: npm run build
+
+      - name: Run tests with the coverage gate
+        run: npm run test:coverage
+
+      - name: Render every example plan
+        run: |
+          for plan in examples/*.plan.json; do
+            node bin/cli.js render "$plan" --out "out/$(basename "$plan" .plan.json).svg"
+          done
+
+      - name: Verify the package contents
+        run: npm pack --dry-run
+
+      - name: Upload rendered diagrams
+        if: matrix.node == 20
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: example-diagrams
+          path: out/*.svg
