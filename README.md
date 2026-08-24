@@ -1,5 +1,10 @@
 # Terraform Architecture Diagram Generator
 
+[![npm version](https://img.shields.io/npm/v/tf-arch-diagram-generator?logo=npm&color=cb3837)](https://www.npmjs.com/package/tf-arch-diagram-generator)
+[![CI](https://github.com/mchittineni/tf-arch-diagram-generator/actions/workflows/ci.yml/badge.svg)](https://github.com/mchittineni/tf-arch-diagram-generator/actions/workflows/ci.yml)
+[![node](https://img.shields.io/node/v/tf-arch-diagram-generator?logo=nodedotjs)](https://nodejs.org/en/about/previous-releases)
+[![license](https://img.shields.io/npm/l/tf-arch-diagram-generator)](LICENSE)
+
 Turn any Terraform plan into an interactive cloud architecture diagram — for **AWS**, **Google Cloud** and **Azure**, including plans that span all three.
 
 Point it at `terraform show -json` output and get a diagram with the real hierarchy (network → zone → subnet → resource), inferred traffic flows, and per-resource plan diffs. Runs as a CLI, a local web viewer, or a library.
