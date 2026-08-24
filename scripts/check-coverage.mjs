@@ -28,6 +28,10 @@ const defaultSuite = fs.readdirSync(path.join(root, 'test'))
 const result = spawnSync(process.execPath, [
   '--test',
   '--experimental-test-coverage',
+  // Pin the reporter: without a TTY, Node 22 defaults to TAP, which prints the
+  // coverage report in a different shape than the spec table parsed below.
+  '--test-reporter=spec',
+  '--test-reporter-destination=stdout',
   '--test-coverage-exclude=test/**',
   ...(process.argv.slice(2).length ? process.argv.slice(2) : defaultSuite)
 ], { cwd: root, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
