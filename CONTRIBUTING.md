@@ -133,8 +133,9 @@ Two husky hooks run automatically after `npm install`:
 - `pre-commit` — runs `npm test`
 
 CI re-checks every commit in a PR plus the PR title, so a squash-merge title
-must be conventional too. **Do not** bump the version in `package.json` or edit
-`CHANGELOG.md` — semantic-release owns both.
+must be conventional too. **Do not** bump the version in `package.json` —
+semantic-release derives versions from git tags, and release notes are
+published on the GitHub Releases page.
 
 ## Refreshing the vendor icon sets
 
