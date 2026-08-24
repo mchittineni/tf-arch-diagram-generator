@@ -118,7 +118,8 @@ export class App {
 
     // Initialize Diagram Canvas
     this.diagramCanvas = new DiagramCanvas(this.diagramMount, (node) => {
-      this.inspector.show(node);
+      if (node) this.inspector.show(node);
+      else this.inspector.hide();
     });
 
     // Initialize Inspector
@@ -148,8 +149,8 @@ export class App {
 
     bind('btn-zoom-in', () => this.diagramCanvas.zoom(1.2));
     bind('btn-zoom-out', () => this.diagramCanvas.zoom(0.8));
-    bind('btn-fit-screen', () => this.diagramCanvas.fitToScreen());
-    bind('btn-reset-view', () => this.diagramCanvas.resetZoom());
+    bind('btn-fit-screen', () => this.diagramCanvas.animated(() => this.diagramCanvas.fitToScreen()));
+    bind('btn-reset-view', () => this.diagramCanvas.animated(() => this.diagramCanvas.resetZoom()));
   }
 
   loadPlan(planJson, title) {
@@ -200,6 +201,9 @@ export class App {
           this.diagramCanvas.selectNode(id);
           const node = this.parsedPlan.nodes.find(n => n.id === id);
           if (node) this.inspector.show(node);
+          // Glide the canvas to the picked resource so the sidebar drives the view.
+          const layoutNode = this.layoutData?.nodes.find(n => n.id === id);
+          if (layoutNode && layoutNode.x !== undefined) this.diagramCanvas.zoomToNode(layoutNode);
         }
       });
 
