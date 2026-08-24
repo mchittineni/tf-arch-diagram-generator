@@ -59,15 +59,30 @@ function assertNoActiveContent(svg, sourcePath) {
   }
 }
 
-/** Strips prolog, DOCTYPE, comments and metadata elements. */
+/**
+ * Strips prolog, DOCTYPE, comments and metadata elements.
+ *
+ * Runs to a fixpoint: a single replacement pass can splice the surrounding
+ * text into a brand-new match (e.g. `<!-<!-- x -->- y -->` becomes `<!-- y -->`),
+ * so keep stripping until nothing changes (CodeQL
+ * js/incomplete-multi-character-sanitization).
+ */
 function stripMetadata(svg) {
-  return svg
-    .replace(/<\?xml[\s\S]*?\?>/g, '')
-    .replace(/<!DOCTYPE[\s\S]*?>/g, '')
-    .replace(/<!--[\s\S]*?-->/g, '')
-    .replace(/<title>[\s\S]*?<\/title>/gi, '')
-    .replace(/<desc>[\s\S]*?<\/desc>/gi, '')
-    .replace(/<metadata[\s\S]*?<\/metadata>/gi, '');
+  const patterns = [
+    /<\?xml[\s\S]*?\?>/g,
+    /<!DOCTYPE[\s\S]*?>/g,
+    /<!--[\s\S]*?-->/g,
+    /<title>[\s\S]*?<\/title>/gi,
+    /<desc>[\s\S]*?<\/desc>/gi,
+    /<metadata[\s\S]*?<\/metadata>/gi
+  ];
+  let out = svg;
+  let previous;
+  do {
+    previous = out;
+    for (const pattern of patterns) out = out.replace(pattern, '');
+  } while (out !== previous);
+  return out;
 }
 
 /**
