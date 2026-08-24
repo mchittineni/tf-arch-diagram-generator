@@ -83,7 +83,42 @@ function looksLikeSvg(buffer) {
     buffer.toString('utf8').includes('</svg>');
 }
 
-async function download(url) {
+/**
+ * Hosts a bundle may be fetched from. `sources.json` is data, not code — and it
+ * is editable in a pull request — so the URL it supplies must not be able to
+ * point the scheduled workflow at an arbitrary server. Extending the list is a
+ * reviewed change to this file.
+ */
+const ALLOWED_BUNDLE_HOSTS = new Set([
+  'icon.icepanel.io',      // bundles behind aws-icons.com / gcpicons.com / az-icons.com
+  'aws.amazon.com',        // official vendor upstreams, should sources.json switch to them
+  'cloud.google.com',
+  'learn.microsoft.com',
+  'arch-center.azureedge.net' // Microsoft's icon-zip CDN linked from learn.microsoft.com
+]);
+
+/** Rejects any bundle URL that is not HTTPS to an allowlisted host. */
+function validateBundleUrl(raw) {
+  let url;
+  try {
+    url = new URL(raw);
+  } catch {
+    throw new Error(`Invalid bundle URL in sources.json: ${raw}`);
+  }
+  if (url.protocol !== 'https:') {
+    throw new Error(`Refusing non-HTTPS bundle URL: ${raw}`);
+  }
+  if (!ALLOWED_BUNDLE_HOSTS.has(url.hostname)) {
+    throw new Error(
+      `Refusing bundle host "${url.hostname}" — not in ALLOWED_BUNDLE_HOSTS. ` +
+      'If this source is intentional, add the host to scripts/fetch-icons.mjs in a reviewed change.'
+    );
+  }
+  return url;
+}
+
+async function download(rawUrl) {
+  const url = validateBundleUrl(rawUrl);
   const response = await fetch(url, {
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     headers: { 'user-agent': 'tf-arch-diagram-generator icon updater (+https://github.com/mchittineni/tf-arch-diagram-generator)' }
