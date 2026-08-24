@@ -217,9 +217,10 @@ feat(providers)!: rename parentVpcId to parentNetworkId   # breaking change
 last commit by hand.
 
 [semantic-release](https://semantic-release.gitbook.io/) handles versioning: a
-merge to `main` derives the next version from the commit types, updates
-`CHANGELOG.md`, tags the release, and publishes to npm with provenance. Never
-bump the version or edit the changelog by hand.
+merge to `main` derives the next version from the commit types, tags the
+release, publishes to npm with provenance, and writes the notes to the
+[GitHub Releases](https://github.com/mchittineni/tf-arch-diagram-generator/releases)
+page. Never bump the version by hand.
 
 ## Contributing
 
