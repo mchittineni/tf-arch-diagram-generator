@@ -85,6 +85,7 @@ export function getIconForType(resourceType) {
     categoryName: categoryDef.name,
     categoryColor: categoryDef.color,
     categoryBgColor: categoryDef.bgColor,
+    backdrop: provider.iconBackdrop || null,
     svg: iconDef.svg
   };
 }

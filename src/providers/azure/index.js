@@ -131,6 +131,9 @@ export const azureProvider = {
   name: 'Microsoft Azure',
   shortName: 'Azure',
   accentColor: '#0078D4',
+  // Official Azure glyphs are drawn for light surfaces; the renderer puts this
+  // tile behind them so they stay legible on the dark node card.
+  iconBackdrop: '#f8fafc',
   typePrefixes: ['azurerm_', 'azuread_', 'azapi_', 'azurestack_'],
   categories: CATEGORIES,
   icons: ICONS,
