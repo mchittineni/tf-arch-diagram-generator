@@ -17,10 +17,8 @@
     "devops",
     "platform-engineering"
   ],
-  "license": "MIT",
   "publishConfig": {
-    "access": "public",
-    "provenance": true
+    "access": "public"
   },
   "type": "module",
   "engines": {
@@ -64,10 +62,15 @@
   "devDependencies": {
     "@commitlint/cli": "^21.2.2",
     "@commitlint/config-conventional": "^21.2.2",
-    "conventional-changelog-conventionalcommits": "8.0.0",
+    "conventional-changelog-conventionalcommits": "10.4.0",
     "husky": "^9.1.7",
     "jsdom": "^30.0.1",
     "semantic-release": "^25.0.9",
     "vite": "^8.2.2"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mchittineni/tf-arch-diagram-generator.git"
   }
 }
