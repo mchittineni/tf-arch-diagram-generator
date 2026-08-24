@@ -51,6 +51,8 @@
     "cli": "node bin/cli.js",
     "icons:update": "node scripts/fetch-icons.mjs",
     "icons:check": "node scripts/fetch-icons.mjs --check",
+    "icons:build": "node scripts/build-icon-modules.mjs",
+    "icons:build:check": "node scripts/build-icon-modules.mjs --check",
     "commitlint": "commitlint --from HEAD~1 --to HEAD --verbose",
     "prepare": "husky",
     "release": "semantic-release",
