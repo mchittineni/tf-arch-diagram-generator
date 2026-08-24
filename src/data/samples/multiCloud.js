@@ -1,0 +1,194 @@
+/**
+ * A single plan spanning AWS, Google Cloud and Azure — demonstrates how a
+ * multi-provider plan renders as one band per cloud.
+ */
+
+const change = (actions, after) => ({ actions, after });
+
+export const MULTI_CLOUD_SAMPLES = {
+  multiCloud: {
+    provider: 'multi',
+    name: 'Multi-Cloud Landing Zone (AWS + GCP + Azure)',
+    description: 'One Terraform plan spanning three clouds: an AWS production VPC, a GCP analytics network with Cloud Run, and an Azure DR virtual network with a scale set — each rendered in its own cloud band.',
+    data: {
+      format_version: '1.2',
+      terraform_version: '1.9.5',
+      resource_changes: [
+        // ---- AWS ----
+        {
+          address: 'aws_vpc.prod',
+          type: 'aws_vpc',
+          name: 'prod',
+          provider_name: 'registry.terraform.io/hashicorp/aws',
+          change: change(['create'], { cidr_block: '10.0.0.0/16', tags: { Name: 'prod-vpc' } })
+        },
+        {
+          address: 'aws_subnet.public_1a',
+          type: 'aws_subnet',
+          name: 'public_1a',
+          provider_name: 'registry.terraform.io/hashicorp/aws',
+          change: change(['create'], {
+            vpc_id: 'aws_vpc.prod',
+            cidr_block: '10.0.1.0/24',
+            availability_zone: 'us-east-1a',
+            map_public_ip_on_launch: true,
+            tags: { Name: 'public-1a' }
+          })
+        },
+        {
+          address: 'aws_subnet.private_1a',
+          type: 'aws_subnet',
+          name: 'private_1a',
+          provider_name: 'registry.terraform.io/hashicorp/aws',
+          change: change(['create'], {
+            vpc_id: 'aws_vpc.prod',
+            cidr_block: '10.0.11.0/24',
+            availability_zone: 'us-east-1a',
+            tags: { Name: 'private-1a' }
+          })
+        },
+        {
+          address: 'aws_lb.edge',
+          type: 'aws_lb',
+          name: 'edge',
+          provider_name: 'registry.terraform.io/hashicorp/aws',
+          change: change(['create'], { name: 'prod-alb', internal: false, subnet_id: 'aws_subnet.public_1a' })
+        },
+        {
+          address: 'aws_instance.api',
+          type: 'aws_instance',
+          name: 'api',
+          provider_name: 'registry.terraform.io/hashicorp/aws',
+          change: change(['create'], {
+            instance_type: 'm6i.large',
+            subnet_id: 'aws_subnet.private_1a',
+            availability_zone: 'us-east-1a',
+            tags: { Name: 'api-server' }
+          })
+        },
+        {
+          address: 'aws_db_instance.orders',
+          type: 'aws_db_instance',
+          name: 'orders',
+          provider_name: 'registry.terraform.io/hashicorp/aws',
+          change: change(['create'], { engine: 'postgres', instance_class: 'db.r6g.large', multi_az: true })
+        },
+        {
+          address: 'aws_route53_zone.primary',
+          type: 'aws_route53_zone',
+          name: 'primary',
+          provider_name: 'registry.terraform.io/hashicorp/aws',
+          change: change(['create'], { name: 'acme.io' })
+        },
+
+        // ---- Google Cloud ----
+        {
+          address: 'google_compute_network.analytics',
+          type: 'google_compute_network',
+          name: 'analytics',
+          provider_name: 'registry.terraform.io/hashicorp/google',
+          change: change(['create'], { name: 'analytics-vpc', auto_create_subnetworks: false })
+        },
+        {
+          address: 'google_compute_subnetwork.analytics_private',
+          type: 'google_compute_subnetwork',
+          name: 'analytics_private',
+          provider_name: 'registry.terraform.io/hashicorp/google',
+          change: change(['create'], {
+            name: 'analytics-private',
+            network: 'google_compute_network.analytics',
+            ip_cidr_range: '10.60.0.0/20',
+            region: 'us-central1',
+            private_ip_google_access: true
+          })
+        },
+        {
+          address: 'google_compute_instance.etl_worker',
+          type: 'google_compute_instance',
+          name: 'etl_worker',
+          provider_name: 'registry.terraform.io/hashicorp/google',
+          change: change(['create'], {
+            name: 'etl-worker',
+            machine_type: 'n2-standard-8',
+            zone: 'us-central1-b',
+            network_interface: [{ subnetwork: 'google_compute_subnetwork.analytics_private' }]
+          })
+        },
+        {
+          address: 'google_cloud_run_v2_service.metrics_api',
+          type: 'google_cloud_run_v2_service',
+          name: 'metrics_api',
+          provider_name: 'registry.terraform.io/hashicorp/google',
+          change: change(['create'], { name: 'metrics-api', location: 'us-central1' })
+        },
+        {
+          address: 'google_bigquery_dataset.warehouse',
+          type: 'google_bigquery_dataset',
+          name: 'warehouse',
+          provider_name: 'registry.terraform.io/hashicorp/google',
+          change: change(['create'], { dataset_id: 'warehouse', location: 'US' })
+        },
+        {
+          address: 'google_pubsub_topic.ingest',
+          type: 'google_pubsub_topic',
+          name: 'ingest',
+          provider_name: 'registry.terraform.io/hashicorp/google',
+          change: change(['create'], { name: 'ingest-events' })
+        },
+
+        // ---- Azure ----
+        {
+          address: 'azurerm_virtual_network.dr',
+          type: 'azurerm_virtual_network',
+          name: 'dr',
+          provider_name: 'registry.terraform.io/hashicorp/azurerm',
+          change: change(['create'], {
+            name: 'vnet-dr',
+            address_space: ['10.80.0.0/16'],
+            location: 'northeurope',
+            resource_group_name: 'rg-dr'
+          })
+        },
+        {
+          address: 'azurerm_subnet.dr_app',
+          type: 'azurerm_subnet',
+          name: 'dr_app',
+          provider_name: 'registry.terraform.io/hashicorp/azurerm',
+          change: change(['create'], {
+            name: 'snet-dr-app',
+            virtual_network_name: 'vnet-dr',
+            address_prefixes: ['10.80.10.0/24'],
+            resource_group_name: 'rg-dr'
+          })
+        },
+        {
+          address: 'azurerm_linux_virtual_machine_scale_set.dr_app',
+          type: 'azurerm_linux_virtual_machine_scale_set',
+          name: 'dr_app',
+          provider_name: 'registry.terraform.io/hashicorp/azurerm',
+          change: change(['create'], {
+            name: 'vmss-dr-app',
+            sku: 'Standard_D2s_v5',
+            instances: 2,
+            location: 'northeurope',
+            subnet_id: 'azurerm_subnet.dr_app'
+          })
+        },
+        {
+          address: 'azurerm_storage_account.dr_backup',
+          type: 'azurerm_storage_account',
+          name: 'dr_backup',
+          provider_name: 'registry.terraform.io/hashicorp/azurerm',
+          change: change(['create'], { name: 'stdrbackup', account_tier: 'Standard', account_replication_type: 'GRS' })
+        },
+        {
+          address: 'azurerm_key_vault.dr',
+          type: 'azurerm_key_vault',
+          name: 'dr',
+          provider_name: 'registry.terraform.io/hashicorp/azurerm',
+          change: change(['create'], { name: 'kv-dr', sku_name: 'standard', location: 'northeurope' })
+        }
+      ]
+    }
+  }
+};
