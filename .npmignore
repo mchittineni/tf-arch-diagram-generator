@@ -1,0 +1,13 @@
+# The `files` field in package.json is the source of truth for what ships.
+# This file only guards against stray artifacts inside included directories.
+test/
+examples/
+.github/
+*.log
+.DS_Store
+assets/
+scripts/
+release-artifacts/
+.husky/
+commitlint.config.js
+.releaserc.json
