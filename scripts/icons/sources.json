@@ -1,0 +1,44 @@
+{
+  "$comment": [
+    "Icon sources fetched by `npm run icons:update`.",
+    "Defaults point at the bundles behind aws-icons.com, gcpicons.com and az-icons.com",
+    "(all three are IcePanel sites serving from icon.icepanel.io). One request per",
+    "cloud instead of hundreds of per-file requests.",
+    "Heads-up: as of this writing every file in that CDN carries a 2023-04-17",
+    "last-modified date, so it is a frozen snapshot rather than a moving feed.",
+    "`officialUpstream` records where each vendor publishes the icons that DO get",
+    "refreshed; switch `bundleUrl` to a local path or vendor URL when you want those."
+  ],
+  "sources": [
+    {
+      "id": "aws",
+      "name": "AWS Architecture Icons",
+      "site": "https://aws-icons.com/",
+      "bundleUrl": "https://icon.icepanel.io/aws/svg.zip",
+      "stripPrefix": "/svg/",
+      "owner": "Amazon Web Services, Inc.",
+      "termsUrl": "https://aws.amazon.com/architecture/icons/",
+      "officialUpstream": "https://aws.amazon.com/architecture/icons/"
+    },
+    {
+      "id": "gcp",
+      "name": "Google Cloud Icons",
+      "site": "https://gcpicons.com/",
+      "bundleUrl": "https://icon.icepanel.io/gcp/svg.zip",
+      "stripPrefix": "/svg/",
+      "owner": "Google LLC / Alphabet Inc.",
+      "termsUrl": "https://cloud.google.com/icons",
+      "officialUpstream": "https://cloud.google.com/icons"
+    },
+    {
+      "id": "azure",
+      "name": "Microsoft Azure Architecture Icons",
+      "site": "https://az-icons.com/",
+      "bundleUrl": "https://icon.icepanel.io/azure/svg.zip",
+      "stripPrefix": "/svg/",
+      "owner": "Microsoft Corporation",
+      "termsUrl": "https://learn.microsoft.com/en-us/azure/architecture/icons/",
+      "officialUpstream": "https://learn.microsoft.com/en-us/azure/architecture/icons/"
+    }
+  ]
+}
