@@ -1,0 +1,138 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.8.0",
+  "resource_changes": [
+    {
+      "address": "aws_vpc.eks_vpc",
+      "type": "aws_vpc",
+      "name": "eks_vpc",
+      "provider_name": "aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "cidr_block": "172.20.0.0/16",
+          "tags": {
+            "kubernetes.io/cluster/prod-eks-cluster": "shared"
+          }
+        }
+      }
+    },
+    {
+      "address": "aws_subnet.eks_private_1",
+      "type": "aws_subnet",
+      "name": "eks_private_1",
+      "provider_name": "aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "vpc_id": "aws_vpc.eks_vpc",
+          "cidr_block": "172.20.1.0/24",
+          "availability_zone": "us-west-2a"
+        }
+      }
+    },
+    {
+      "address": "aws_eks_cluster.prod_cluster",
+      "type": "aws_eks_cluster",
+      "name": "prod_cluster",
+      "provider_name": "aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "name": "prod-k8s-platform",
+          "version": "1.30",
+          "role_arn": "arn:aws:iam::123456789012:role/eks-cluster-role"
+        }
+      }
+    },
+    {
+      "address": "aws_eks_node_group.managed_workers",
+      "type": "aws_eks_node_group",
+      "name": "managed_workers",
+      "provider_name": "aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "cluster_name": "prod-k8s-platform",
+          "node_group_name": "system-workload-nodes",
+          "instance_types": [
+            "m6i.xlarge",
+            "m6a.xlarge"
+          ],
+          "scaling_config": {
+            "desired_size": 6,
+            "max_size": 20,
+            "min_size": 3
+          }
+        }
+      }
+    },
+    {
+      "address": "aws_ecr_repository.app_repo",
+      "type": "aws_ecr_repository",
+      "name": "app_repo",
+      "provider_name": "aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "name": "prod/core-backend-service",
+          "image_tag_mutability": "IMMUTABLE"
+        }
+      }
+    },
+    {
+      "address": "aws_secretsmanager_secret.db_credentials",
+      "type": "aws_secretsmanager_secret",
+      "name": "db_credentials",
+      "provider_name": "aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "name": "prod/eks/database/postgres-creds",
+          "kms_key_id": "arn:aws:kms:us-west-2:123456789012:key/cmk-01"
+        }
+      }
+    },
+    {
+      "address": "aws_kms_key.cmk",
+      "type": "aws_kms_key",
+      "name": "cmk",
+      "provider_name": "aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "description": "Customer Managed Key for EKS envelope encryption",
+          "enable_key_rotation": true
+        }
+      }
+    },
+    {
+      "address": "aws_iam_role.eks_oidc_role",
+      "type": "aws_iam_role",
+      "name": "eks_oidc_role",
+      "provider_name": "aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "name": "eks-serviceaccount-role-prod"
+        }
+      }
+    }
+  ]
+}

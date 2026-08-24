@@ -1,0 +1,253 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.9.5",
+  "resource_changes": [
+    {
+      "address": "google_api_gateway_api.public",
+      "type": "google_api_gateway_api",
+      "name": "public",
+      "provider_name": "registry.terraform.io/hashicorp/google",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "api_id": "public-api",
+          "project": "acme-data"
+        }
+      }
+    },
+    {
+      "address": "google_api_gateway_gateway.public",
+      "type": "google_api_gateway_gateway",
+      "name": "public",
+      "provider_name": "registry.terraform.io/hashicorp/google",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "gateway_id": "public-gw",
+          "region": "us-central1"
+        }
+      }
+    },
+    {
+      "address": "google_cloud_run_v2_service.ingest_api",
+      "type": "google_cloud_run_v2_service",
+      "name": "ingest_api",
+      "provider_name": "registry.terraform.io/hashicorp/google",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "name": "ingest-api",
+          "location": "us-central1",
+          "ingress": "INGRESS_TRAFFIC_ALL",
+          "labels": {
+            "tier": "api"
+          }
+        }
+      }
+    },
+    {
+      "address": "google_cloud_run_v2_service.report_api",
+      "type": "google_cloud_run_v2_service",
+      "name": "report_api",
+      "provider_name": "registry.terraform.io/hashicorp/google",
+      "change": {
+        "actions": [
+          "update"
+        ],
+        "after": {
+          "name": "report-api",
+          "location": "us-central1",
+          "ingress": "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
+        },
+        "before": {
+          "name": "report-api",
+          "location": "us-central1",
+          "ingress": "INGRESS_TRAFFIC_ALL"
+        }
+      }
+    },
+    {
+      "address": "google_pubsub_topic.events",
+      "type": "google_pubsub_topic",
+      "name": "events",
+      "provider_name": "registry.terraform.io/hashicorp/google",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "name": "domain-events",
+          "labels": {
+            "domain": "orders"
+          }
+        }
+      }
+    },
+    {
+      "address": "google_pubsub_subscription.events_push",
+      "type": "google_pubsub_subscription",
+      "name": "events_push",
+      "provider_name": "registry.terraform.io/hashicorp/google",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "name": "domain-events-push",
+          "topic": "domain-events",
+          "ack_deadline_seconds": 30
+        }
+      }
+    },
+    {
+      "address": "google_cloudfunctions2_function.projector",
+      "type": "google_cloudfunctions2_function",
+      "name": "projector",
+      "provider_name": "registry.terraform.io/hashicorp/google",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "name": "event-projector",
+          "location": "us-central1",
+          "labels": {
+            "runtime": "nodejs20"
+          }
+        }
+      }
+    },
+    {
+      "address": "google_firestore_database.default",
+      "type": "google_firestore_database",
+      "name": "default",
+      "provider_name": "registry.terraform.io/hashicorp/google",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "name": "(default)",
+          "location_id": "nam5",
+          "type": "FIRESTORE_NATIVE"
+        }
+      }
+    },
+    {
+      "address": "google_bigquery_dataset.analytics",
+      "type": "google_bigquery_dataset",
+      "name": "analytics",
+      "provider_name": "registry.terraform.io/hashicorp/google",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "dataset_id": "analytics",
+          "location": "US",
+          "labels": {
+            "retention": "400d"
+          }
+        }
+      }
+    },
+    {
+      "address": "google_storage_bucket.raw_landing",
+      "type": "google_storage_bucket",
+      "name": "raw_landing",
+      "provider_name": "registry.terraform.io/hashicorp/google",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "name": "acme-raw-landing",
+          "location": "US",
+          "force_destroy": false
+        }
+      }
+    },
+    {
+      "address": "google_cloud_scheduler_job.nightly_rollup",
+      "type": "google_cloud_scheduler_job",
+      "name": "nightly_rollup",
+      "provider_name": "registry.terraform.io/hashicorp/google",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "name": "nightly-rollup",
+          "schedule": "0 2 * * *",
+          "region": "us-central1"
+        }
+      }
+    },
+    {
+      "address": "google_eventarc_trigger.bucket_finalize",
+      "type": "google_eventarc_trigger",
+      "name": "bucket_finalize",
+      "provider_name": "registry.terraform.io/hashicorp/google",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "name": "raw-object-finalized",
+          "location": "us-central1"
+        }
+      }
+    },
+    {
+      "address": "google_secret_manager_secret.api_key",
+      "type": "google_secret_manager_secret",
+      "name": "api_key",
+      "provider_name": "registry.terraform.io/hashicorp/google",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "secret_id": "partner-api-key"
+        }
+      }
+    },
+    {
+      "address": "google_service_account.ingest",
+      "type": "google_service_account",
+      "name": "ingest",
+      "provider_name": "registry.terraform.io/hashicorp/google",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "account_id": "ingest-runtime",
+          "display_name": "Ingest Runtime"
+        }
+      }
+    },
+    {
+      "address": "google_logging_project_sink.audit",
+      "type": "google_logging_project_sink",
+      "name": "audit",
+      "provider_name": "registry.terraform.io/hashicorp/google",
+      "change": {
+        "actions": [
+          "delete"
+        ],
+        "after": null,
+        "before": {
+          "name": "legacy-audit-sink",
+          "destination": "storage.googleapis.com/old-audit"
+        }
+      }
+    }
+  ]
+}

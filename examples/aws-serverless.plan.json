@@ -1,0 +1,164 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.8.0",
+  "resource_changes": [
+    {
+      "address": "aws_cognito_user_pool.auth_pool",
+      "type": "aws_cognito_user_pool",
+      "name": "auth_pool",
+      "provider_name": "aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "name": "user-auth-pool-prod",
+          "mfa_configuration": "ON"
+        }
+      }
+    },
+    {
+      "address": "aws_apigatewayv2_api.http_api",
+      "type": "aws_apigatewayv2_api",
+      "name": "http_api",
+      "provider_name": "aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "name": "microservices-gateway-v2",
+          "protocol_type": "HTTP",
+          "cors_configuration": {
+            "allow_origins": [
+              "*"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "address": "aws_lambda_function.auth_authorizer",
+      "type": "aws_lambda_function",
+      "name": "auth_authorizer",
+      "provider_name": "aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "function_name": "auth-jwt-authorizer",
+          "runtime": "nodejs20.x",
+          "memory_size": 256,
+          "timeout": 5
+        }
+      }
+    },
+    {
+      "address": "aws_lambda_function.order_processor",
+      "type": "aws_lambda_function",
+      "name": "order_processor",
+      "provider_name": "aws",
+      "change": {
+        "actions": [
+          "update"
+        ],
+        "before": {
+          "memory_size": 512,
+          "timeout": 10
+        },
+        "after": {
+          "function_name": "order-create-processor",
+          "runtime": "python3.12",
+          "memory_size": 1024,
+          "timeout": 30,
+          "environment": {
+            "variables": {
+              "TABLE_NAME": "orders-table-prod"
+            }
+          }
+        }
+      }
+    },
+    {
+      "address": "aws_lambda_function.payment_webhook",
+      "type": "aws_lambda_function",
+      "name": "payment_webhook",
+      "provider_name": "aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "function_name": "stripe-payment-listener",
+          "runtime": "nodejs20.x",
+          "memory_size": 512
+        }
+      }
+    },
+    {
+      "address": "aws_dynamodb_table.orders_table",
+      "type": "aws_dynamodb_table",
+      "name": "orders_table",
+      "provider_name": "aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "name": "orders-table-prod",
+          "billing_mode": "PAY_PER_REQUEST",
+          "hash_key": "order_id",
+          "range_key": "created_at",
+          "point_in_time_recovery": true
+        }
+      }
+    },
+    {
+      "address": "aws_sqs_queue.order_events_queue",
+      "type": "aws_sqs_queue",
+      "name": "order_events_queue",
+      "provider_name": "aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "name": "order-events-fifo.fifo",
+          "fifo_queue": true,
+          "content_based_deduplication": true,
+          "visibility_timeout_seconds": 180
+        }
+      }
+    },
+    {
+      "address": "aws_sns_topic.notification_topic",
+      "type": "aws_sns_topic",
+      "name": "notification_topic",
+      "provider_name": "aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "name": "customer-sms-email-notifications"
+        }
+      }
+    },
+    {
+      "address": "aws_cloudwatch_log_group.lambda_logs",
+      "type": "aws_cloudwatch_log_group",
+      "name": "lambda_logs",
+      "provider_name": "aws",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "name": "/aws/lambda/orders-service-logs",
+          "retention_in_days": 30
+        }
+      }
+    }
+  ]
+}
