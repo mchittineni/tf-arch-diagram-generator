@@ -50,7 +50,37 @@ export function truncate(str, maxLen) {
   return s.length > maxLen ? `${s.slice(0, maxLen - 1)}…` : s;
 }
 
+/**
+ * Interaction styles shared by the live canvas and the exported SVG, so a
+ * rendered file opened in a browser hovers and animates like the viewer.
+ * Selectors are scoped to diagram classes; safe to inline in an HTML page.
+ */
+export const DIAGRAM_STYLE = `
+  <style>
+    .diagram-node { cursor: pointer; transition: opacity 0.25s ease; }
+    .diagram-node .node-card { transition: stroke 0.2s ease, stroke-width 0.2s ease; }
+    .diagram-node:hover .node-card { stroke: #38bdf8; stroke-width: 2.5px; }
+    .diagram-edge { transition: opacity 0.25s ease; }
+    .diagram-edge .edge-path { transition: stroke 0.2s ease, stroke-width 0.2s ease; }
+    .diagram-edge .edge-flow {
+      stroke-dasharray: 4 14;
+      animation: tfarch-flow 1.6s linear infinite;
+      pointer-events: none;
+    }
+    .diagram-edge:hover .edge-path,
+    .diagram-edge.active .edge-path { stroke: #38bdf8; stroke-width: 2.4px; }
+    .diagram-edge:hover .edge-flow,
+    .diagram-edge.active .edge-flow { stroke: #7dd3fc; stroke-opacity: 0.9; animation-duration: 0.8s; }
+    .diagram-node.dim, .diagram-edge.dim { opacity: 0.12; }
+    @keyframes tfarch-flow { to { stroke-dashoffset: -18; } }
+    @media (prefers-reduced-motion: reduce) {
+      .diagram-edge .edge-flow { animation: none; }
+    }
+  </style>
+`;
+
 export const SVG_DEFS = `
+  ${DIAGRAM_STYLE}
   <defs>
     <filter id="node-shadow" x="-10%" y="-10%" width="130%" height="130%">
       <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000" flood-opacity="0.45"/>
@@ -143,7 +173,9 @@ export function renderEdges(edges = []) {
 
     return `
       <g class="diagram-edge" data-source="${escapeXml(edge.source)}" data-target="${escapeXml(edge.target)}">
-        <path d="${path}" fill="none" stroke="rgba(148, 163, 184, 0.35)" stroke-width="1.8" marker-end="url(#arrowhead)"/>
+        <path class="edge-hit" d="${path}" fill="none" stroke="transparent" stroke-width="14"/>
+        <path class="edge-path" d="${path}" fill="none" stroke="rgba(148, 163, 184, 0.35)" stroke-width="1.8" marker-end="url(#arrowhead)"/>
+        <path class="edge-flow" d="${path}" fill="none" stroke="#94a3b8" stroke-opacity="0.45" stroke-width="2.2" stroke-linecap="round"/>
         ${label ? `
           <rect x="${midX - labelWidth / 2}" y="${midY - 9}" width="${labelWidth}" height="18" rx="4" fill="rgba(15, 23, 42, 0.88)" stroke="rgba(255,255,255,0.1)"/>
           <text x="${midX}" y="${midY + 3}" text-anchor="middle" fill="#cbd5e1" font-size="9" font-family="${FONT_MONO}">${escapeXml(label)}</text>
@@ -178,20 +210,31 @@ export function renderNodes(nodes = [], state = {}) {
     const actionColor = ACTION_COLORS[node.action] || ACTION_COLORS.noop;
     const actionSymbol = ACTION_SYMBOLS[node.action] || '•';
 
+    // Official GCP/Azure glyphs are designed for light surfaces, so they get a
+    // light tile behind them; AWS icons carry their own gradient square.
+    const tileSize = ICON_SIZE + 8;
+    const tile = node.icon.backdrop
+      ? `<rect x="10" y="${(node.height - tileSize) / 2}" width="${tileSize}" height="${tileSize}" rx="7" fill="${escapeXml(node.icon.backdrop)}"/>`
+      : '';
+    const iconSize = node.icon.backdrop ? ICON_SIZE - 6 : ICON_SIZE;
+    const iconX = node.icon.backdrop ? 10 + (tileSize - iconSize) / 2 : 12;
+
     return `
       <g class="diagram-node${isSelected ? ' selected' : ''}"
          data-id="${escapeXml(node.id)}"
          transform="translate(${node.x}, ${node.y})"
          opacity="${isDimmed ? '0.2' : '1'}"
          style="cursor: pointer;">
-        <rect width="${node.width}" height="${node.height}" rx="10"
+        <title>${escapeXml(node.name)} — ${escapeXml(node.type)} (${escapeXml(node.action)})</title>
+        <rect class="node-card" width="${node.width}" height="${node.height}" rx="10"
               fill="#111827"
               stroke="${isSelected ? '#38bdf8' : hexToRgba(actionColor, 0.5)}"
               stroke-width="${isSelected ? 2.5 : 1.5}"
               filter="${isSelected ? 'url(#node-glow)' : 'url(#node-shadow)'}"/>
         <circle cx="${node.width - 14}" cy="14" r="7" fill="${actionColor}" />
         <text x="${node.width - 14}" y="17.5" text-anchor="middle" fill="#fff" font-size="10" font-weight="bold">${actionSymbol}</text>
-        <g transform="translate(12, ${(node.height - ICON_SIZE) / 2})">${embedIcon(node.icon.svg)}</g>
+        ${tile}
+        <g transform="translate(${iconX}, ${(node.height - iconSize) / 2})">${embedIcon(node.icon.svg, iconSize)}</g>
         <g transform="translate(56, 26)">
           <text fill="#f8fafc" font-size="12" font-weight="700" font-family="${FONT_SANS}">${escapeXml(truncate(node.name, 14))}</text>
           <text y="16" fill="#94a3b8" font-size="9.5" font-family="${FONT_MONO}">${escapeXml(truncate(stripProviderPrefix(node.type), 16))}</text>

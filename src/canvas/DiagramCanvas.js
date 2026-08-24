@@ -56,6 +56,7 @@ export class DiagramCanvas {
     this.viewport.addEventListener('mousedown', (e) => {
       if (e.target.closest('.diagram-node') || e.target.closest('.control-btn')) return;
       this.isDragging = true;
+      this.didDrag = false;
       this.dragStartX = e.clientX - this.panX;
       this.dragStartY = e.clientY - this.panY;
       this.viewport.style.cursor = 'grabbing';
@@ -63,8 +64,11 @@ export class DiagramCanvas {
 
     window.addEventListener('mousemove', (e) => {
       if (!this.isDragging) return;
-      this.panX = e.clientX - this.dragStartX;
-      this.panY = e.clientY - this.dragStartY;
+      const nextX = e.clientX - this.dragStartX;
+      const nextY = e.clientY - this.dragStartY;
+      if (Math.abs(nextX - this.panX) + Math.abs(nextY - this.panY) > 0) this.didDrag = true;
+      this.panX = nextX;
+      this.panY = nextY;
       this.updateTransform();
     });
 
@@ -74,10 +78,37 @@ export class DiagramCanvas {
       this.viewport.style.cursor = 'grab';
     });
 
+    // Clicking empty canvas (without panning) clears the selection.
+    this.viewport.addEventListener('click', (e) => {
+      if (this.didDrag) return;
+      if (e.target.closest('.diagram-node') || e.target.closest('.diagram-edge') || e.target.closest('.control-btn')) return;
+      if (this.selectedNodeId) this.deselectNode();
+    });
+
     this.viewport.addEventListener('wheel', (e) => {
       e.preventDefault();
       this.zoom(e.deltaY < 0 ? 1.1 : 0.9, e.clientX, e.clientY);
     }, { passive: false });
+
+    // Keyboard: +/- zoom, 0 resets, F fits — ignored while typing in a field.
+    window.addEventListener('keydown', (e) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const target = e.target;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable)) return;
+      if (e.key === '+' || e.key === '=') { this.zoom(1.2); e.preventDefault(); }
+      else if (e.key === '-' || e.key === '_') { this.zoom(1 / 1.2); e.preventDefault(); }
+      else if (e.key === '0') { this.animated(() => this.resetZoom()); e.preventDefault(); }
+      else if (e.key === 'f' || e.key === 'F') { this.animated(() => this.fitToScreen()); e.preventDefault(); }
+      else if (e.key === 'Escape' && this.selectedNodeId) { this.deselectNode(); }
+    });
+  }
+
+  /** Runs a programmatic pan/zoom with a short CSS transition on the viewport. */
+  animated(move) {
+    if (!this.viewportGroup) return move();
+    this.viewportGroup.style.transition = 'transform 0.35s ease';
+    move();
+    window.setTimeout(() => { this.viewportGroup.style.transition = ''; }, 380);
   }
 
   zoom(factor, clientX, clientY) {
@@ -161,8 +192,47 @@ export class DiagramCanvas {
         e.stopPropagation();
         this.selectNode(id);
       });
-      el.addEventListener('mouseenter', (e) => node && this.showTooltip(e, node));
-      el.addEventListener('mouseleave', () => this.hideTooltip());
+      el.addEventListener('dblclick', (e) => {
+        e.stopPropagation();
+        if (node) this.zoomToNode(node);
+      });
+      el.addEventListener('mouseenter', (e) => {
+        if (node) this.showTooltip(e, node);
+        this.highlightConnections(id);
+      });
+      el.addEventListener('mouseleave', () => {
+        this.hideTooltip();
+        this.highlightConnections(this.selectedNodeId);
+      });
+    });
+    // Re-rendering the node layer wipes classes, so re-apply the selection's highlight.
+    this.highlightConnections(this.selectedNodeId);
+  }
+
+  /**
+   * Spotlights a node's direct connections: its edges light up (animated flow),
+   * unrelated nodes and edges fade back. Pass null to clear.
+   */
+  highlightConnections(id) {
+    const edgeEls = this.edgesLayer.querySelectorAll('.diagram-edge');
+    const nodeEls = this.nodesLayer.querySelectorAll('.diagram-node');
+    if (!id) {
+      edgeEls.forEach(el => el.classList.remove('active', 'dim'));
+      nodeEls.forEach(el => el.classList.remove('dim'));
+      return;
+    }
+
+    const neighbors = new Set([id]);
+    edgeEls.forEach(el => {
+      const source = el.getAttribute('data-source');
+      const target = el.getAttribute('data-target');
+      const connected = source === id || target === id;
+      el.classList.toggle('active', connected);
+      el.classList.toggle('dim', !connected);
+      if (connected) { neighbors.add(source); neighbors.add(target); }
+    });
+    nodeEls.forEach(el => {
+      el.classList.toggle('dim', !neighbors.has(el.getAttribute('data-id')));
     });
   }
 
@@ -171,6 +241,25 @@ export class DiagramCanvas {
     this.renderNodeLayer();
     const node = this.layoutData?.nodes.find(n => n.id === id);
     if (node && this.onNodeSelect) this.onNodeSelect(node);
+  }
+
+  deselectNode() {
+    this.selectedNodeId = null;
+    this.renderNodeLayer();
+    if (this.onNodeSelect) this.onNodeSelect(null);
+  }
+
+  /** Double-click: glide the viewport to center on a node. */
+  zoomToNode(node) {
+    const rect = this.viewport.getBoundingClientRect();
+    const targetScale = Math.max(this.scale, 1.3);
+    this.animated(() => {
+      this.scale = targetScale;
+      this.panX = rect.width / 2 - (node.x + node.width / 2) * targetScale;
+      this.panY = rect.height / 2 - (node.y + node.height / 2) * targetScale;
+      this.updateTransform();
+      this.notifyZoomChange();
+    });
   }
 
   showTooltip(e, node) {
