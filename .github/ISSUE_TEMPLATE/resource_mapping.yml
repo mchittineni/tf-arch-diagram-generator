@@ -1,0 +1,39 @@
+name: Missing resource mapping
+description: A resource type renders as the generic icon
+labels: [enhancement, resource-mapping]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Unmapped resources still render — they just get the provider's generic icon. Adding a mapping is usually a one-line change; see CONTRIBUTING.md if you would like to open the PR yourself.
+
+  - type: textarea
+    id: types
+    attributes:
+      label: Terraform resource type(s)
+      description: One per line, e.g. `google_workflows_workflow`
+      render: text
+    validations:
+      required: true
+
+  - type: input
+    id: service
+    attributes:
+      label: Cloud service name
+      description: The service as its cloud names it, e.g. "Workflows", "Azure Container Apps"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Which category does it belong to?
+      options: [compute, containers, networking, storage, database, security, management, integration, analytics, general]
+    validations:
+      required: true
+
+  - type: textarea
+    id: relationships
+    attributes:
+      label: Relationships worth drawing
+      description: What should connect to it, and with what label? e.g. "API Gateway → this, label 'Invoke'"

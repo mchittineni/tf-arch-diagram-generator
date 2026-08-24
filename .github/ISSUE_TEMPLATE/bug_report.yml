@@ -1,0 +1,58 @@
+name: Bug report
+description: Something renders wrong, crashes, or is misinterpreted
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Never paste a real Terraform plan.** Plans contain account ids, IP ranges and sometimes secrets. Trim your example to the few resources that reproduce the problem and replace real values with placeholders.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What did the diagram (or the CLI) do?
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+      description: How should those resources have been drawn or related?
+    validations:
+      required: true
+
+  - type: textarea
+    id: plan
+    attributes:
+      label: Minimal sanitized plan excerpt
+      description: The smallest `resource_changes` snippet that reproduces it.
+      render: json
+    validations:
+      required: true
+
+  - type: dropdown
+    id: cloud
+    attributes:
+      label: Cloud provider
+      multiple: true
+      options: [AWS, Google Cloud, Azure, Multi-cloud, Other/unsupported]
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Output of `tf-arch --version` (or the commit you are on)
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Node version, OS, and whether you used the CLI or the web viewer
+    validations:
+      required: true
