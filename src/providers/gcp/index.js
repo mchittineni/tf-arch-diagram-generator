@@ -112,6 +112,9 @@ export const gcpProvider = {
   name: 'Google Cloud',
   shortName: 'GCP',
   accentColor: '#4285F4',
+  // Official GCP glyphs are drawn for light surfaces; the renderer puts this
+  // tile behind them so they stay legible on the dark node card.
+  iconBackdrop: '#f8fafc',
   typePrefixes: ['google_'],
   categories: CATEGORIES,
   icons: ICONS,

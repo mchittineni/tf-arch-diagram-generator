@@ -6,8 +6,8 @@
     "cloud instead of hundreds of per-file requests.",
     "Heads-up: as of this writing every file in that CDN carries a 2023-04-17",
     "last-modified date, so it is a frozen snapshot rather than a moving feed.",
-    "`officialUpstream` records where each vendor publishes the icons that DO get",
-    "`officialUpstream` records where each vendor publishes the icons that DO get"
+    "`officialUpstream` records where each vendor publishes the icons that DO",
+    "receive updates, for manual cross-checking when the snapshot goes stale."
   ],
   "sources": [
     {

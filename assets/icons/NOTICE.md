@@ -25,12 +25,20 @@ linked pages before relying on any of this, but in summary they generally:
 - **forbid** redistributing the icon sets as an icon library or similar
   standalone offering.
 
-Because of the last point, these files are **excluded from the published npm
-package** (see the `files` field in `package.json`). They are tracked here as
-reference assets for contributors, refreshed by the semiannual
-`update-icons` workflow. The diagrams this tool renders today use the
-project's own simplified icons in `src/providers/*/icons.js`, which are
-original work under the MIT license.
+The raw sets in this directory are **excluded from the published npm package**
+(see the `files` field in `package.json`). They are tracked here as the source
+of truth, refreshed by the semiannual `update-icons` workflow.
+
+The diagrams render with a **subset of these official icons** (~100 of the
+~1,100 files — only the services the resource map knows about), embedded into
+the generated `src/providers/*/officialIcons.js` modules by
+`npm run icons:build`. The artwork is embedded verbatim; the generator only
+strips XML metadata and namespaces internal `id`/`class` identifiers so many
+icons can coexist in one SVG document. Those embedded SVGs remain the property
+of their vendors under the terms above — the MIT license does not cover them.
+Each icon is used solely to represent its own vendor's service in
+architecture diagrams of the user's deployment, which is the use the vendor
+terms are written to allow.
 
 If you would rather not keep vendor assets in your fork's history, delete this
 directory, add `assets/icons/` to `.gitignore`, and run the updater with

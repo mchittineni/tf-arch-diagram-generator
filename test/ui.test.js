@@ -98,6 +98,69 @@ test('canvas: pan, zoom clamping, fit, reset and filters', async () => {
   assert.equal(tooltip.style.display, 'none');
 });
 
+test('canvas: connection spotlight, keyboard shortcuts and zoom-to-node', async () => {
+  const { app, window, document } = await mountApp();
+  const canvas = app.diagramCanvas;
+  const viewport = document.getElementById('canvas-viewport');
+  const key = (k, opts = {}) => window.dispatchEvent(new window.KeyboardEvent('keydown', { key: k, cancelable: true, ...opts }));
+
+  // Hovering a node spotlights its edges and dims unrelated nodes/edges.
+  const edge = document.querySelector('.diagram-edge');
+  assert.ok(edge, 'the sample plan should produce edges');
+  const sourceId = edge.getAttribute('data-source');
+  const sourceEl = document.querySelector(`.diagram-node[data-id="${sourceId}"]`);
+  sourceEl.dispatchEvent(mouse(window, 'mouseenter', { clientX: 5, clientY: 5 }));
+  assert.ok(edge.classList.contains('active'), 'connected edge should light up');
+  const dimmedEdges = [...document.querySelectorAll('.diagram-edge.dim')];
+  const dimmedNodes = [...document.querySelectorAll('.diagram-node.dim')];
+  assert.ok(dimmedEdges.length + dimmedNodes.length > 0, 'unrelated elements should fade back');
+
+  // Leaving with nothing selected clears the spotlight.
+  sourceEl.dispatchEvent(mouse(window, 'mouseleave'));
+  assert.ok(!edge.classList.contains('active'));
+  assert.equal(document.querySelectorAll('.diagram-node.dim').length, 0);
+
+  // Selecting keeps the spotlight after the node layer re-renders.
+  canvas.selectNode(sourceId);
+  assert.ok(document.querySelector('.diagram-edge.active'), 'selection must persist the spotlight');
+
+  // Escape deselects and clears it.
+  key('Escape');
+  assert.equal(canvas.selectedNodeId, null);
+  assert.equal(document.querySelectorAll('.diagram-edge.active').length, 0);
+
+  // Clicking empty canvas (no drag) also deselects.
+  canvas.selectNode(sourceId);
+  canvas.didDrag = false;
+  viewport.dispatchEvent(mouse(window, 'click', { clientX: 1, clientY: 1 }));
+  assert.equal(canvas.selectedNodeId, null, 'background click should deselect');
+
+  // Keyboard zoom: + / - / 0 reset / F fit; modifiers and inputs are ignored.
+  const startScale = canvas.scale;
+  key('+');
+  assert.ok(canvas.scale > startScale, '+ should zoom in');
+  key('-');
+  key('0');
+  assert.deepEqual([canvas.scale, canvas.panX, canvas.panY], [1, 40, 40], '0 should reset');
+  key('f');
+  assert.ok(canvas.scale >= 0.25 && canvas.scale <= 1.2, 'F should fit to screen');
+  canvas.resetZoom();
+  key('+', { metaKey: true });
+  assert.equal(canvas.scale, 1, 'modifier chords must be ignored');
+  const input = document.getElementById('sidebar-search-input');
+  input.focus();
+  input.dispatchEvent(new window.KeyboardEvent('keydown', { key: '+', bubbles: true, cancelable: true }));
+  assert.equal(canvas.scale, 1, 'typing in a field must not zoom');
+
+  // Double-click glides the viewport to the node.
+  const layoutNode = canvas.layoutData.nodes.find(n => n.id === sourceId);
+  const nodeEl = document.querySelector(`.diagram-node[data-id="${sourceId}"]`);
+  nodeEl.dispatchEvent(mouse(window, 'dblclick'));
+  assert.ok(canvas.scale >= 1.3, 'double-click should zoom in on the node');
+  assert.ok(Number.isFinite(canvas.panX) && Number.isFinite(canvas.panY));
+  assert.ok(layoutNode, 'the node exists in the layout');
+});
+
 test('navbar and sidebar callbacks drive the app', async () => {
   const { app, window, document } = await mountApp();
 
