@@ -71,6 +71,9 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/mchittineni/tf-arch-diagram-generator.git"
-  }
+    "url": "git+https://github.com/mchittineni/tf-arch-diagram-generator.git"
+  },
+  "author": "mchittineni <manideep.chittineni@hotmail.com>",
+  "homepage": "https://github.com/mchittineni/tf-arch-diagram-generator#readme",
+  "bugs": "https://github.com/mchittineni/tf-arch-diagram-generator/issues"
 }
