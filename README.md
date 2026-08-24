@@ -18,7 +18,7 @@ npx tf-arch-diagram-generator render plan.json -o arch.svg # standalone SVG, no 
 
 ## Features
 
-- **Three clouds, one tool** — AWS (`aws_*`), Google Cloud (`google_*`) and Azure (`azurerm_*` / `azuread_*`), with 265 resource types mapped across 104 service icons. A multi-provider plan renders as one band per cloud.
+- **Three clouds, one tool** — AWS (`aws_*`), Google Cloud (`google_*`) and Azure (`azurerm_*` / `azuread_*`), with 265 resource types mapped across 104 service icons — the **official vendor architecture icons**, embedded verbatim from the AWS / Google Cloud / Azure icon sets. A multi-provider plan renders as one band per cloud.
 - **Real containment hierarchy** — VPC / VPC Network / Virtual Network, availability zones and regions, public vs. private subnets. Nested references resolve too (`network_interface[0].subnetwork`, `ip_configuration[0].subnet_id`, `default_node_pool[0].vnet_subnet_id`).
 - **Inferred traffic flows** — Route 53 → CloudFront → ALB → EC2 → RDS, Cloud DNS → Global LB → Cloud Run → Cloud SQL, DNS → Front Door → App Gateway → VMSS → Azure SQL, and many more. Inference is per-provider, so edges never cross clouds by accident.
 - **Plan-aware** — `+ create`, `~ update`, `- destroy` badges on every node, with attribute-level before/after diffs in the inspector.
@@ -133,7 +133,9 @@ npm install
 npm run dev      # http://localhost:5173
 ```
 
-In the viewer: drag to pan, scroll to zoom, click a resource to inspect its planned diff, filter by cloud / service category / plan action, search by name or address, and export the diagram as SVG. **Import Plan** accepts a drag-and-dropped or pasted `plan.json`.
+In the viewer: drag to pan, scroll to zoom, click a resource to inspect its planned diff, filter by cloud / service category / plan action, search by name or address, and export the diagram as SVG. Hovering a resource spotlights its connections — its edges light up with an animated flow while everything unrelated fades back — and the spotlight sticks while a resource is selected. Double-click a node (or click one in the sidebar) to glide the viewport to it; press `+` / `-` to zoom, `0` to reset, `F` to fit, `Esc` to deselect. **Import Plan** accepts a drag-and-dropped or pasted `plan.json`.
+
+Exported SVGs keep a slice of that interactivity: opened in a browser they carry hover highlighting, native tooltips and the animated traffic flow.
 
 ## Provider coverage
 
@@ -171,17 +173,27 @@ Each cloud lives in `src/providers/<id>/`: an icon set plus a definition declari
 
 Plans are processed entirely on your machine. There are no runtime dependencies, no telemetry and no network calls; `tf-arch serve` binds to `127.0.0.1` and rejects requests with an unexpected Host header. The hosted page's only remote request is to Google Fonts. Plan content is treated as untrusted throughout — names, tags and attribute values are escaped before reaching HTML or SVG. Terraform plans routinely contain sensitive values — read [SECURITY.md](SECURITY.md) for the full hardening list before sharing a plan or an exported diagram.
 
-## Reference icon sets
+## Official icon sets
 
-The diagrams render with this project's own simplified icons (MIT, in
-`src/providers/*/icons.js`). Alongside them, the official vendor architecture
-icons are tracked in `assets/icons/` as reference assets:
+The diagrams render with the official vendor architecture icons. The full sets
+are tracked in `assets/icons/`, and the subset the resource map actually uses
+is embedded into generated modules (`src/providers/*/officialIcons.js`) so the
+CLI and viewer need no asset files at runtime:
 
 ```bash
-npm run icons:update          # refresh all three sets
+npm run icons:update          # refresh all three sets from upstream
 npm run icons:update -- -c azure   # one cloud
 npm run icons:check           # verify the files match the committed manifest
+npm run icons:build           # re-embed the mapped subset into src/providers/
+npm run icons:build:check     # CI gate: embedded modules match the assets
 ```
+
+The key → file mapping lives in
+[`scripts/icons/mapping.json`](scripts/icons/mapping.json). The generator
+embeds each SVG verbatim, only stripping XML metadata and namespacing internal
+`id`/`class` attributes so icons can coexist in one SVG document. The artwork
+remains the property of its vendors — see
+[`assets/icons/NOTICE.md`](assets/icons/NOTICE.md).
 
 Sources are declared in [`scripts/icons/sources.json`](scripts/icons/sources.json)
 and default to the bundles behind [aws-icons.com](https://aws-icons.com/),
