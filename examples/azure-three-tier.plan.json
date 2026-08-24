@@ -1,0 +1,421 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.9.5",
+  "resource_changes": [
+    {
+      "address": "azurerm_resource_group.core",
+      "type": "azurerm_resource_group",
+      "name": "core",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "name": "rg-core-prod-eastus",
+          "location": "eastus",
+          "tags": {
+            "environment": "production",
+            "owner": "platform"
+          }
+        }
+      }
+    },
+    {
+      "address": "azurerm_virtual_network.core",
+      "type": "azurerm_virtual_network",
+      "name": "core",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "name": "vnet-core-prod",
+          "address_space": [
+            "10.30.0.0/16"
+          ],
+          "location": "eastus",
+          "resource_group_name": "rg-core-prod-eastus",
+          "tags": {
+            "environment": "production"
+          }
+        }
+      }
+    },
+    {
+      "address": "azurerm_subnet.gateway",
+      "type": "azurerm_subnet",
+      "name": "gateway",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "name": "snet-gateway",
+          "virtual_network_name": "vnet-core-prod",
+          "address_prefixes": [
+            "10.30.1.0/24"
+          ],
+          "resource_group_name": "rg-core-prod-eastus"
+        }
+      }
+    },
+    {
+      "address": "azurerm_subnet.app",
+      "type": "azurerm_subnet",
+      "name": "app",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "name": "snet-app",
+          "virtual_network_name": "vnet-core-prod",
+          "address_prefixes": [
+            "10.30.10.0/24"
+          ],
+          "resource_group_name": "rg-core-prod-eastus"
+        }
+      }
+    },
+    {
+      "address": "azurerm_subnet.data",
+      "type": "azurerm_subnet",
+      "name": "data",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "name": "snet-data",
+          "virtual_network_name": "vnet-core-prod",
+          "address_prefixes": [
+            "10.30.20.0/24"
+          ],
+          "resource_group_name": "rg-core-prod-eastus",
+          "service_endpoints": [
+            "Microsoft.Sql"
+          ]
+        }
+      }
+    },
+    {
+      "address": "azurerm_public_ip.appgw",
+      "type": "azurerm_public_ip",
+      "name": "appgw",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "name": "pip-appgw-prod",
+          "allocation_method": "Static",
+          "sku": "Standard",
+          "location": "eastus"
+        }
+      }
+    },
+    {
+      "address": "azurerm_application_gateway.public",
+      "type": "azurerm_application_gateway",
+      "name": "public",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "name": "agw-public-prod",
+          "location": "eastus",
+          "resource_group_name": "rg-core-prod-eastus",
+          "gateway_ip_configuration": [
+            {
+              "name": "gw-ipcfg",
+              "subnet_id": "azurerm_subnet.gateway"
+            }
+          ],
+          "tags": {
+            "tier": "edge"
+          }
+        }
+      }
+    },
+    {
+      "address": "azurerm_linux_virtual_machine_scale_set.app",
+      "type": "azurerm_linux_virtual_machine_scale_set",
+      "name": "app",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "name": "vmss-app-prod",
+          "sku": "Standard_D4s_v5",
+          "instances": 6,
+          "location": "eastus",
+          "zones": [
+            "1",
+            "2",
+            "3"
+          ],
+          "resource_group_name": "rg-core-prod-eastus",
+          "network_interface": [
+            {
+              "ip_configuration": [
+                {
+                  "subnet_id": "azurerm_subnet.app"
+                }
+              ]
+            }
+          ],
+          "subnet_id": "azurerm_subnet.app",
+          "tags": {
+            "tier": "app"
+          }
+        }
+      }
+    },
+    {
+      "address": "azurerm_network_security_group.app",
+      "type": "azurerm_network_security_group",
+      "name": "app",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "name": "nsg-app",
+          "location": "eastus",
+          "subnet_id": "azurerm_subnet.app",
+          "resource_group_name": "rg-core-prod-eastus"
+        }
+      }
+    },
+    {
+      "address": "azurerm_nat_gateway.egress",
+      "type": "azurerm_nat_gateway",
+      "name": "egress",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "name": "natgw-prod",
+          "location": "eastus",
+          "sku_name": "Standard",
+          "resource_group_name": "rg-core-prod-eastus"
+        }
+      }
+    },
+    {
+      "address": "azurerm_mssql_server.core",
+      "type": "azurerm_mssql_server",
+      "name": "core",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "name": "sql-core-prod",
+          "version": "12.0",
+          "location": "eastus",
+          "minimum_tls_version": "1.2",
+          "resource_group_name": "rg-core-prod-eastus"
+        }
+      }
+    },
+    {
+      "address": "azurerm_mssql_database.orders",
+      "type": "azurerm_mssql_database",
+      "name": "orders",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "update"
+        ],
+        "after": {
+          "name": "db-orders",
+          "sku_name": "BC_Gen5_4",
+          "zone_redundant": true,
+          "max_size_gb": 500
+        },
+        "before": {
+          "name": "db-orders",
+          "sku_name": "GP_Gen5_2",
+          "zone_redundant": false,
+          "max_size_gb": 250
+        }
+      }
+    },
+    {
+      "address": "azurerm_redis_cache.session",
+      "type": "azurerm_redis_cache",
+      "name": "session",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "name": "redis-session-prod",
+          "sku_name": "Premium",
+          "capacity": 1,
+          "location": "eastus"
+        }
+      }
+    },
+    {
+      "address": "azurerm_storage_account.assets",
+      "type": "azurerm_storage_account",
+      "name": "assets",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "name": "stassetsprod",
+          "account_tier": "Standard",
+          "account_replication_type": "GZRS",
+          "location": "eastus",
+          "tags": {
+            "environment": "production"
+          }
+        }
+      }
+    },
+    {
+      "address": "azurerm_storage_container.static",
+      "type": "azurerm_storage_container",
+      "name": "static",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "name": "static",
+          "container_access_type": "blob"
+        }
+      }
+    },
+    {
+      "address": "azurerm_cdn_frontdoor_profile.edge",
+      "type": "azurerm_cdn_frontdoor_profile",
+      "name": "edge",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "name": "afd-prod",
+          "sku_name": "Premium_AzureFrontDoor"
+        }
+      }
+    },
+    {
+      "address": "azurerm_dns_zone.public",
+      "type": "azurerm_dns_zone",
+      "name": "public",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "name": "acme.io",
+          "resource_group_name": "rg-core-prod-eastus"
+        }
+      }
+    },
+    {
+      "address": "azurerm_key_vault.core",
+      "type": "azurerm_key_vault",
+      "name": "core",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "name": "kv-core-prod",
+          "sku_name": "premium",
+          "location": "eastus",
+          "purge_protection_enabled": true
+        }
+      }
+    },
+    {
+      "address": "azurerm_user_assigned_identity.app",
+      "type": "azurerm_user_assigned_identity",
+      "name": "app",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "name": "id-app-prod",
+          "location": "eastus"
+        }
+      }
+    },
+    {
+      "address": "azurerm_log_analytics_workspace.core",
+      "type": "azurerm_log_analytics_workspace",
+      "name": "core",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "name": "law-core-prod",
+          "sku": "PerGB2018",
+          "retention_in_days": 90
+        }
+      }
+    },
+    {
+      "address": "azurerm_application_insights.app",
+      "type": "azurerm_application_insights",
+      "name": "app",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "name": "appi-app-prod",
+          "application_type": "web"
+        }
+      }
+    },
+    {
+      "address": "azurerm_monitor_metric_alert.latency",
+      "type": "azurerm_monitor_metric_alert",
+      "name": "latency",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "delete"
+        ],
+        "after": null,
+        "before": {
+          "name": "alert-legacy-latency",
+          "enabled": true
+        }
+      }
+    }
+  ]
+}

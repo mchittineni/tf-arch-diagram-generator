@@ -1,0 +1,320 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.9.5",
+  "resource_changes": [
+    {
+      "address": "azurerm_resource_group.platform",
+      "type": "azurerm_resource_group",
+      "name": "platform",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "name": "rg-platform-weu",
+          "location": "westeurope",
+          "tags": {
+            "environment": "production"
+          }
+        }
+      }
+    },
+    {
+      "address": "azurerm_virtual_network.platform",
+      "type": "azurerm_virtual_network",
+      "name": "platform",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "name": "vnet-platform-weu",
+          "address_space": [
+            "10.40.0.0/16"
+          ],
+          "location": "westeurope",
+          "resource_group_name": "rg-platform-weu"
+        }
+      }
+    },
+    {
+      "address": "azurerm_subnet.aks_system",
+      "type": "azurerm_subnet",
+      "name": "aks_system",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "name": "snet-aks-system",
+          "virtual_network_name": "vnet-platform-weu",
+          "address_prefixes": [
+            "10.40.0.0/20"
+          ],
+          "resource_group_name": "rg-platform-weu"
+        }
+      }
+    },
+    {
+      "address": "azurerm_subnet.aks_user",
+      "type": "azurerm_subnet",
+      "name": "aks_user",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "name": "snet-aks-user",
+          "virtual_network_name": "vnet-platform-weu",
+          "address_prefixes": [
+            "10.40.16.0/20"
+          ],
+          "resource_group_name": "rg-platform-weu"
+        }
+      }
+    },
+    {
+      "address": "azurerm_subnet.data",
+      "type": "azurerm_subnet",
+      "name": "data",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "name": "snet-data",
+          "virtual_network_name": "vnet-platform-weu",
+          "address_prefixes": [
+            "10.40.32.0/24"
+          ],
+          "resource_group_name": "rg-platform-weu"
+        }
+      }
+    },
+    {
+      "address": "azurerm_kubernetes_cluster.platform",
+      "type": "azurerm_kubernetes_cluster",
+      "name": "platform",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "name": "aks-platform-weu",
+          "kubernetes_version": "1.30",
+          "location": "westeurope",
+          "private_cluster_enabled": true,
+          "default_node_pool": [
+            {
+              "name": "system",
+              "node_count": 3,
+              "vm_size": "Standard_D4s_v5",
+              "vnet_subnet_id": "azurerm_subnet.aks_system"
+            }
+          ],
+          "resource_group_name": "rg-platform-weu",
+          "tags": {
+            "workload": "platform"
+          }
+        }
+      }
+    },
+    {
+      "address": "azurerm_kubernetes_cluster_node_pool.apps",
+      "type": "azurerm_kubernetes_cluster_node_pool",
+      "name": "apps",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "name": "apps",
+          "vm_size": "Standard_D8s_v5",
+          "node_count": 6,
+          "vnet_subnet_id": "azurerm_subnet.aks_user",
+          "zones": [
+            "1",
+            "2",
+            "3"
+          ]
+        }
+      }
+    },
+    {
+      "address": "azurerm_container_registry.platform",
+      "type": "azurerm_container_registry",
+      "name": "platform",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "name": "acrplatformweu",
+          "sku": "Premium",
+          "location": "westeurope"
+        }
+      }
+    },
+    {
+      "address": "azurerm_postgresql_flexible_server.core",
+      "type": "azurerm_postgresql_flexible_server",
+      "name": "core",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "name": "psql-core-weu",
+          "version": "16",
+          "sku_name": "GP_Standard_D4s_v3",
+          "high_availability": [
+            {
+              "mode": "ZoneRedundant"
+            }
+          ],
+          "delegated_subnet_id": "azurerm_subnet.data",
+          "subnet_id": "azurerm_subnet.data",
+          "location": "westeurope"
+        }
+      }
+    },
+    {
+      "address": "azurerm_servicebus_namespace.platform",
+      "type": "azurerm_servicebus_namespace",
+      "name": "platform",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "name": "sb-platform-weu",
+          "sku": "Premium",
+          "location": "westeurope"
+        }
+      }
+    },
+    {
+      "address": "azurerm_servicebus_topic.orders",
+      "type": "azurerm_servicebus_topic",
+      "name": "orders",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "name": "orders",
+          "max_size_in_megabytes": 5120
+        }
+      }
+    },
+    {
+      "address": "azurerm_servicebus_queue.dead_letter",
+      "type": "azurerm_servicebus_queue",
+      "name": "dead_letter",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "name": "orders-dlq",
+          "max_delivery_count": 10
+        }
+      }
+    },
+    {
+      "address": "azurerm_linux_function_app.reconciler",
+      "type": "azurerm_linux_function_app",
+      "name": "reconciler",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "name": "func-reconciler-weu",
+          "location": "westeurope",
+          "https_only": true
+        }
+      }
+    },
+    {
+      "address": "azurerm_key_vault.platform",
+      "type": "azurerm_key_vault",
+      "name": "platform",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "name": "kv-platform-weu",
+          "sku_name": "premium",
+          "location": "westeurope"
+        }
+      }
+    },
+    {
+      "address": "azurerm_user_assigned_identity.workload",
+      "type": "azurerm_user_assigned_identity",
+      "name": "workload",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "name": "id-workload-weu",
+          "location": "westeurope"
+        }
+      }
+    },
+    {
+      "address": "azurerm_role_assignment.acr_pull",
+      "type": "azurerm_role_assignment",
+      "name": "acr_pull",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "role_definition_name": "AcrPull",
+          "scope": "acrplatformweu"
+        }
+      }
+    },
+    {
+      "address": "azurerm_log_analytics_workspace.platform",
+      "type": "azurerm_log_analytics_workspace",
+      "name": "platform",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "update"
+        ],
+        "after": {
+          "name": "law-platform-weu",
+          "retention_in_days": 180,
+          "sku": "PerGB2018"
+        },
+        "before": {
+          "name": "law-platform-weu",
+          "retention_in_days": 30,
+          "sku": "PerGB2018"
+        }
+      }
+    }
+  ]
+}
