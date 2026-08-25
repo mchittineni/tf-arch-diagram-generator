@@ -274,9 +274,6 @@ function commandRender(positionals, options) {
   if (!planPath) throw new Error('render requires a plan file: tf-arch render plan.json');
 
   const outPath = path.resolve(process.cwd(), options.out || 'architecture.svg');
-  if (fs.existsSync(outPath) && fs.statSync(outPath).isDirectory()) {
-    throw new Error(`--out ${options.out} is a directory; give the SVG a file name`);
-  }
   const title = options.title
     || (planPath === STDIN || path.basename(planPath) === 'plan.json'
       ? 'Terraform Architecture'
@@ -284,8 +281,18 @@ function commandRender(positionals, options) {
   const { parsed, svg } = buildDiagram(readPlan(planPath), title);
   reportPlanCaveats(parsed, planPath);
 
-  fs.mkdirSync(path.dirname(outPath), { recursive: true });
-  fs.writeFileSync(outPath, svg, 'utf8');
+  // Write first and classify the failure afterwards: probing the path before
+  // writing would race with anything replacing it in between.
+  try {
+    fs.mkdirSync(path.dirname(outPath), { recursive: true });
+    fs.writeFileSync(outPath, svg, 'utf8');
+  } catch (err) {
+    const shown = options.out || 'architecture.svg';
+    if (err.code === 'EISDIR') throw new Error(`--out ${shown} is a directory; give the SVG a file name`);
+    if (err.code === 'ENOTDIR' || err.code === 'EEXIST') throw new Error(`--out ${shown}: a path component is not a directory`);
+    if (err.code === 'EACCES' || err.code === 'EPERM') throw new Error(`--out ${shown}: permission denied`);
+    throw new Error(`Could not write ${shown} (${err.code || err.message})`);
+  }
 
   const clouds = parsed.providers.map(p => p.shortName).join(', ') || 'none detected';
   console.log(`Wrote ${outPath}`);
