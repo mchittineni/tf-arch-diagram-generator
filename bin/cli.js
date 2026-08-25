@@ -14,10 +14,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import http from 'node:http';
+import net from 'node:net';
+import { pipeline } from 'node:stream';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 
-import { parseTerraformPlan } from '../src/parser/tfPlanParser.js';
+import { parseTerraformPlan, MAX_EDGES } from '../src/parser/tfPlanParser.js';
 import { computeArchitectureLayout } from '../src/canvas/layoutEngine.js';
 import { renderStandaloneSvg } from '../src/canvas/svgRenderer.js';
 
@@ -85,11 +87,20 @@ const SECURITY_HEADERS = {
  * hostname at 127.0.0.1 and read the plan we are serving — and a plan routinely
  * contains account ids, CIDR ranges and other infrastructure detail.
  */
-function isAllowedHost(hostHeader, boundHost, port) {
+function isAllowedHost(hostHeader, boundHost, port, localAddress = null) {
   if (!hostHeader) return false;
   const hostname = hostHeader.replace(/:\d+$/, '').replace(/^\[|\]$/g, '').toLowerCase();
   const allowed = new Set(['localhost', '127.0.0.1', '::1', '[::1]', boundHost.toLowerCase()]);
+  // Bound to a non-loopback address (or all interfaces): clients address the
+  // machine by the interface IP they reached, which is what the socket saw.
+  // Names still need an exact match, so a rebinding hostname stays rejected.
+  if (localAddress && !isLoopbackHost(boundHost)) allowed.add(localAddress.replace(/^::ffff:/, '').toLowerCase());
   return allowed.has(hostname) || hostHeader.toLowerCase() === `${boundHost.toLowerCase()}:${port}`;
+}
+
+function isLoopbackHost(host) {
+  const h = String(host).toLowerCase().replace(/^\[|\]$/g, '');
+  return h === 'localhost' || h === '::1' || h.startsWith('127.');
 }
 
 const USAGE = `
@@ -100,22 +111,47 @@ Usage
   tf-arch render <plan.json> [options]    Write a standalone SVG (no browser)
   tf-arch inspect <plan.json> [options]   Print a plan summary
 
+  <plan.json> is the output of \`terraform show -json\`; pass \`-\` to read it from stdin.
+
 Options
-  -o, --out <file>     Output path for render (default: architecture.svg)
-  -t, --title <text>   Diagram title
-  -p, --port <number>  Port for serve (default: 5173)
-      --host <host>    Host for serve (default: 127.0.0.1)
-      --open           Open the viewer in your default browser
-      --json           Machine-readable output for inspect
+  render   -o, --out <file>     Output path (default: architecture.svg)
+           -t, --title <text>   Diagram title (default: derived from the file name)
+  serve    -p, --port <number>  Port (default: 5173; 0 picks a free port)
+               --host <host>    Bind address (default: 127.0.0.1 — anything else exposes the plan)
+               --open           Open the viewer in your default browser
+           -t, --title <text>   Title shown in the viewer
+  inspect      --json           Machine-readable output (stable, additive-only shape)
+
   -h, --help           Show this help
   -v, --version        Show version
+
+Exit codes: 0 success · 1 error (details on stderr). Warnings go to stderr, so
+\`inspect --json\` stays clean JSON on stdout.
 
 Examples
   terraform plan -out=tfplan && terraform show -json tfplan > plan.json
   tf-arch serve plan.json --open
   tf-arch render plan.json --out docs/architecture.svg --title "Production"
-  tf-arch inspect plan.json --json | jq '.providers'
+  terraform show -json tfplan | tf-arch inspect - --json | jq '.providers'
 `.trim();
+
+/** Which options each command understands; anything else is a mistake worth flagging. */
+const COMMAND_OPTIONS = {
+  serve: ['port', 'host', 'open', 'title'],
+  render: ['out', 'title'],
+  inspect: ['json']
+};
+const OPTION_FLAGS = { out: '--out', title: '--title', port: '--port', host: '--host', open: '--open', json: '--json' };
+
+function parsePort(raw, flag) {
+  const port = Number(raw);
+  if (!/^\d+$/.test(String(raw).trim()) || !Number.isInteger(port) || port < 0 || port > 65535) {
+    throw new Error(`${flag} must be an integer between 0 and 65535 (got "${raw}")`);
+  }
+  return port;
+}
+
+const warn = (message) => console.error(`Warning: ${message}`);
 
 function parseArgs(argv) {
   const options = {};
@@ -123,36 +159,80 @@ function parseArgs(argv) {
 
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
-    const takeValue = () => argv[++i];
+    // A value-taking flag must be followed by a value, never by another flag:
+    // `--title --out x.svg` used to silently set the title to "--out".
+    const takeValue = () => {
+      const next = argv[i + 1];
+      // `-` (stdin) and negative numbers are values, so the real validator can reject them.
+      if (next === undefined || (next.startsWith('-') && next !== '-' && !/^-\d/.test(next))) {
+        throw new Error(`Option ${arg} requires a value`);
+      }
+      i += 1;
+      return next;
+    };
 
     switch (arg) {
       case '-o': case '--out': options.out = takeValue(); break;
       case '-t': case '--title': options.title = takeValue(); break;
-      case '-p': case '--port': options.port = Number(takeValue()); break;
+      case '-p': case '--port': options.port = parsePort(takeValue(), arg); break;
       case '--host': options.host = takeValue(); break;
       case '--open': options.open = true; break;
       case '--json': options.json = true; break;
       case '-h': case '--help': options.help = true; break;
       case '-v': case '--version': options.version = true; break;
       default:
-        if (arg.startsWith('-')) throw new Error(`Unknown option: ${arg}`);
+        if (arg.startsWith('-') && arg !== '-') throw new Error(`Unknown option: ${arg}`);
         positionals.push(arg);
     }
   }
   return { options, positionals };
 }
 
-function readPlan(planPath) {
-  const resolved = path.resolve(process.cwd(), planPath);
-  if (!fs.existsSync(resolved)) {
-    throw new Error(`Plan file not found: ${resolved}`);
+function assertUsage(command, positionals, options, { maxPositionals }) {
+  if (positionals.length > maxPositionals) {
+    throw new Error(`Unexpected argument: ${positionals[maxPositionals]} (${command} takes ${maxPositionals === 0 ? 'no plan file' : 'one plan file'})`);
   }
-  const raw = fs.readFileSync(resolved, 'utf8');
+  const allowed = new Set(COMMAND_OPTIONS[command]);
+  const stray = Object.keys(options).filter(k => !allowed.has(k) && k !== 'help' && k !== 'version');
+  if (stray.length > 0) {
+    throw new Error(`Option${stray.length > 1 ? 's' : ''} ${stray.map(k => OPTION_FLAGS[k] || k).join(', ')} not valid for ${command}`);
+  }
+}
+
+const STDIN = '-';
+const planLabel = (planPath) => (planPath === STDIN ? 'stdin' : planPath);
+
+function readPlan(planPath) {
+  let raw;
+  if (planPath === STDIN) {
+    try {
+      raw = fs.readFileSync(0, 'utf8');
+    } catch (err) {
+      throw new Error(`Could not read the plan from stdin (${err.code || err.message}). Pipe it in: terraform show -json tfplan | tf-arch inspect -`);
+    }
+  } else {
+    const resolved = path.resolve(process.cwd(), planPath);
+    if (!fs.existsSync(resolved)) {
+      throw new Error(`Plan file not found: ${resolved}`);
+    }
+    if (fs.statSync(resolved).isDirectory()) {
+      throw new Error(`${planPath} is a directory, not a plan file`);
+    }
+    raw = fs.readFileSync(resolved, 'utf8');
+  }
+
+  // A binary plan (`terraform plan -out=tfplan`) is a zip archive.
+  if (raw.startsWith('PK\u0003\u0004')) {
+    throw new Error(
+      `${planLabel(planPath)} is a binary Terraform plan, not JSON. ` +
+      'Convert it first: terraform show -json tfplan > plan.json'
+    );
+  }
   try {
     return JSON.parse(raw);
   } catch (err) {
     throw new Error(
-      `${planPath} is not valid JSON (${err.message}). ` +
+      `${planLabel(planPath)} is not valid JSON (${err.message}). ` +
       'Generate it with: terraform show -json tfplan > plan.json'
     );
   }
@@ -164,13 +244,43 @@ function buildDiagram(plan, title) {
   return { parsed, layout, svg: renderStandaloneSvg(layout, { title }) };
 }
 
+const unmodelledResources = (parsed) => parsed.nodes.filter(n => n.providerId === 'unknown');
+
+/**
+ * Things worth knowing that are not errors: an empty plan (almost always the
+ * wrong file), resources from providers the tool has no model for, and edges
+ * left undrawn because the plan is enormous. Always on stderr.
+ */
+function reportPlanCaveats(parsed, planPath) {
+  if (parsed.nodes.length === 0) {
+    warn(`no resources found in ${planLabel(planPath)} — is this the output of \`terraform show -json\` for a plan (or state) file?`);
+  }
+  const unknown = unmodelledResources(parsed);
+  if (unknown.length > 0) {
+    const shown = unknown.slice(0, 5).map(n => n.type);
+    const more = unknown.length > shown.length ? `, +${unknown.length - shown.length} more` : '';
+    warn(`${unknown.length} resource(s) from providers this tool does not model yet render with a generic icon: ${shown.join(', ')}${more}`);
+  }
+  if (parsed.edgesTruncated > 0) {
+    warn(`plan is very large: ${parsed.edgesTruncated} inferred relationship(s) beyond the first ${MAX_EDGES} were not drawn`);
+  }
+}
+
 function commandRender(positionals, options) {
+  assertUsage('render', positionals, options, { maxPositionals: 1 });
   const [planPath] = positionals;
   if (!planPath) throw new Error('render requires a plan file: tf-arch render plan.json');
 
   const outPath = path.resolve(process.cwd(), options.out || 'architecture.svg');
-  const title = options.title || `Terraform Architecture — ${path.basename(planPath)}`;
+  if (fs.existsSync(outPath) && fs.statSync(outPath).isDirectory()) {
+    throw new Error(`--out ${options.out} is a directory; give the SVG a file name`);
+  }
+  const title = options.title
+    || (planPath === STDIN || path.basename(planPath) === 'plan.json'
+      ? 'Terraform Architecture'
+      : `Terraform Architecture — ${path.basename(planPath)}`);
   const { parsed, svg } = buildDiagram(readPlan(planPath), title);
+  reportPlanCaveats(parsed, planPath);
 
   fs.mkdirSync(path.dirname(outPath), { recursive: true });
   fs.writeFileSync(outPath, svg, 'utf8');
@@ -182,15 +292,19 @@ function commandRender(positionals, options) {
 }
 
 function commandInspect(positionals, options) {
+  assertUsage('inspect', positionals, options, { maxPositionals: 1 });
   const [planPath] = positionals;
   if (!planPath) throw new Error('inspect requires a plan file: tf-arch inspect plan.json');
 
   const { parsed, layout } = buildDiagram(readPlan(planPath), 'inspect');
+  reportPlanCaveats(parsed, planPath);
 
   if (options.json) {
     console.log(JSON.stringify({
       stats: parsed.stats,
       providers: parsed.providers,
+      unmodelled: unmodelledResources(parsed).map(n => ({ address: n.address, type: n.type })),
+      edgesTruncated: parsed.edgesTruncated,
       resources: parsed.nodes.map(n => ({
         address: n.address,
         type: n.type,
@@ -207,7 +321,7 @@ function commandInspect(positionals, options) {
     return;
   }
 
-  console.log(`Plan summary — ${planPath}`);
+  console.log(`Plan summary — ${planLabel(planPath)}`);
   console.log(`  Resources : ${parsed.stats.total}`);
   console.log(`  Actions   : +${parsed.stats.create} create, ~${parsed.stats.update} update, -${parsed.stats.delete} destroy, ${parsed.stats.noop} unchanged`);
   console.log(`  Clouds    : ${parsed.providers.map(p => `${p.shortName} (${parsed.nodes.filter(n => n.providerId === p.id).length})`).join(', ') || 'none detected'}`);
@@ -227,6 +341,7 @@ function notFound(res) {
 }
 
 function commandServe(positionals, options) {
+  assertUsage('serve', positionals, options, { maxPositionals: 1 });
   const [planPath] = positionals;
   const distDir = path.join(packageRoot, 'dist');
 
@@ -242,15 +357,20 @@ function commandServe(positionals, options) {
     const plan = readPlan(planPath);
     // Fail fast on an unparseable plan rather than in the browser.
     const { parsed } = buildDiagram(plan, 'serve');
+    reportPlanCaveats(parsed, planPath);
     planPayload = JSON.stringify({
-      title: options.title || path.basename(planPath),
+      title: options.title || (planPath === STDIN ? 'Terraform Architecture' : path.basename(planPath)),
       plan
     });
-    console.log(`Loaded ${planPath}: ${parsed.nodes.length} resources · clouds: ${parsed.providers.map(p => p.shortName).join(', ') || 'none detected'}`);
+    console.log(`Loaded ${planLabel(planPath)}: ${parsed.nodes.length} resources · clouds: ${parsed.providers.map(p => p.shortName).join(', ') || 'none detected'}`);
   }
 
-  const port = Number.isFinite(options.port) ? options.port : 5173;
+  const requestedPort = Number.isInteger(options.port) ? options.port : 5173;
   const host = options.host || '127.0.0.1';
+  if (!isLoopbackHost(host)) {
+    warn(`binding to ${host} exposes this plan (account ids, CIDR ranges, names) to everyone who can reach that address. See SECURITY.md.`);
+  }
+  let port = requestedPort; // replaced by the real port once listening (matters for --port 0)
 
   const server = http.createServer((req, res) => {
     // Only GET/HEAD are ever meaningful for a static viewer.
@@ -260,7 +380,7 @@ function commandServe(positionals, options) {
       return;
     }
 
-    if (!isAllowedHost(req.headers.host, host, port)) {
+    if (!isAllowedHost(req.headers.host, host, port, req.socket?.localAddress)) {
       res.writeHead(403, { ...SECURITY_HEADERS, 'Content-Type': 'text/plain' });
       res.end('Forbidden: unexpected Host header');
       return;
@@ -331,19 +451,22 @@ function commandServe(positionals, options) {
       return;
     }
 
-    const stream = fs.createReadStream(resolved);
-    // Without this handler an unreadable file (permissions, or a file removed
-    // between stat and open) raises an unhandled 'error' event and takes the
+    // pipeline() (rather than pipe()) destroys the file stream when the client
+    // goes away mid-transfer and surfaces read errors — an unreadable file
+    // (permissions, or removed between stat and open) must not take the
     // whole process down.
-    stream.on('error', (err) => {
-      console.error(`Failed to read ${path.relative(distDir, resolved)}: ${err.code || err.message}`);
-      res.destroy();
+    pipeline(fs.createReadStream(resolved), res, (err) => {
+      if (err && err.code !== 'ERR_STREAM_PREMATURE_CLOSE') {
+        console.error(`Failed to read ${path.relative(distDir, resolved)}: ${err.code || err.message}`);
+        res.destroy();
+      }
     });
-    stream.pipe(res);
   });
 
-  server.listen(port, host, () => {
-    const address = `http://${host}:${port}`;
+  server.listen(requestedPort, host, () => {
+    port = server.address().port;
+    const displayHost = net.isIPv6(host) ? `[${host}]` : host;
+    const address = `http://${displayHost}:${port}`;
     console.log(`tf-arch viewer running at ${address}`);
     console.log(planPath ? 'Showing your plan. Press Ctrl+C to stop.' : 'No plan supplied — showing built-in demo templates. Press Ctrl+C to stop.');
     if (options.open) openBrowser(address);
@@ -360,23 +483,31 @@ function commandServe(positionals, options) {
 
   server.on('error', (err) => {
     if (err.code === 'EADDRINUSE') {
-      console.error(`Port ${port} is already in use. Try: tf-arch serve --port ${port + 1}`);
-      process.exit(1);
+      console.error(`Error: port ${requestedPort} is already in use. Try: tf-arch serve --port ${requestedPort + 1} (or --port 0 for a free one)`);
+    } else if (err.code === 'EACCES') {
+      console.error(`Error: no permission to listen on ${host}:${requestedPort} — ports below 1024 need elevated privileges. Try --port 5173.`);
+    } else if (err.code === 'EADDRNOTAVAIL') {
+      console.error(`Error: ${host} is not an address of this machine (${err.code}). Check --host.`);
+    } else {
+      console.error(`Error: cannot listen on ${host}:${requestedPort} (${err.code || err.message})`);
     }
-    throw err;
+    process.exit(1);
   });
 }
 
 function openBrowser(url) {
+  const fallback = () => console.log(`Open ${url} in your browser.`);
   import('node:child_process').then(({ spawn }) => {
     const command = process.platform === 'darwin' ? 'open'
       : process.platform === 'win32' ? 'cmd'
       : 'xdg-open';
     const args = process.platform === 'win32' ? ['/c', 'start', '', url] : [url];
-    spawn(command, args, { stdio: 'ignore', detached: true }).unref();
-  }).catch(() => {
-    console.log(`Open ${url} in your browser.`);
-  });
+    const child = spawn(command, args, { stdio: 'ignore', detached: true });
+    // No opener installed (headless Linux, containers, WSL): without this
+    // listener the 'error' event is unhandled and kills the running server.
+    child.on('error', fallback);
+    child.unref();
+  }).catch(fallback);
 }
 
 function main(argv) {
@@ -391,16 +522,16 @@ function main(argv) {
 
   const { options, positionals } = parsed;
 
-  if (options.version) {
+  const [command, ...rest] = positionals;
+
+  if (options.version || command === 'version') {
     console.log(pkg.version);
     return;
   }
-  if (options.help || positionals.length === 0) {
+  if (options.help || positionals.length === 0 || command === 'help') {
     console.log(USAGE);
     return;
   }
-
-  const [command, ...rest] = positionals;
 
   try {
     switch (command) {
