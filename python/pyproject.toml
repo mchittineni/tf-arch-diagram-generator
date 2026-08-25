@@ -1,0 +1,79 @@
+# Python distribution of tf-arch-diagram-generator.
+#
+# The tool is written in JavaScript; this package bundles the exact same
+# bin/, src/ and dist/ that ship to npm and drives them through a local
+# Node.js (>= 22) install, so `pip install tf-arch-diagram-generator` gives
+# Python users the `tf-arch` command plus a small `tf_arch` API.
+#
+# Build from the repo root after `npm run build`:
+#   python -m build python/
+# The version is read from ../package.json (or TF_ARCH_VERSION) at build time.
+
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "tf-arch-diagram-generator"
+dynamic = ["version"]
+description = "Turn any Terraform plan into an interactive cloud architecture diagram — AWS, Google Cloud and Azure, including multi-cloud plans."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.9"
+authors = [{ name = "mchittineni", email = "manideep.chittineni@hotmail.com" }]
+keywords = [
+  "terraform", "architecture", "diagram", "visualization",
+  "aws", "gcp", "google-cloud", "azure",
+  "infrastructure-as-code", "iac", "svg", "devops", "platform-engineering",
+]
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "Intended Audience :: System Administrators",
+  "Operating System :: OS Independent",
+  "Programming Language :: JavaScript",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Topic :: Software Development :: Documentation",
+  "Topic :: System :: Systems Administration",
+  "Topic :: Utilities",
+  "Typing :: Typed",
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/mchittineni/tf-arch-diagram-generator#readme"
+Repository = "https://github.com/mchittineni/tf-arch-diagram-generator"
+Issues = "https://github.com/mchittineni/tf-arch-diagram-generator/issues"
+Changelog = "https://github.com/mchittineni/tf-arch-diagram-generator/releases"
+npm = "https://www.npmjs.com/package/tf-arch-diagram-generator"
+
+[project.scripts]
+tf-arch = "tf_arch.cli:main"
+
+[tool.hatch.version]
+source = "code"
+path = "hatch_version.py"
+expression = "VERSION"
+
+# Pulls the JavaScript runtime (bin/, src/, dist/, package.json, LICENSE) from
+# the repository root into tf_arch/_js/ inside the sdist and wheel.
+[tool.hatch.build.hooks.custom]
+path = "hatch_build.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["tf_arch"]
+# The JS runtime is added by the hook via force-include (see hatch_build.py);
+# keep it out of the regular selection so it is never picked up twice.
+exclude = ["tf_arch/_js"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "tf_arch",
+  "tests",
+  "hatch_build.py",
+  "hatch_version.py",
+  "pyproject.toml",
+  "README.md",
+]
