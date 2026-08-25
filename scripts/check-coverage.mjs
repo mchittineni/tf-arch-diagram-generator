@@ -19,6 +19,13 @@ const BRANCH_THRESHOLD_ALL = 80;   // overall only: single-file branch % is nois
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
+// The serve tests skip themselves without built assets, which silently drops
+// bin/cli.js far below the floor — say so up front instead of failing cryptically.
+if (!fs.existsSync(path.join(root, 'dist', 'index.html'))) {
+  console.error('Coverage gate: dist/ is missing, so the `tf-arch serve` tests cannot run. Build first: npm run build');
+  process.exit(2);
+}
+
 // Expand the suite ourselves: a bare directory argument is not resolvable by
 // the module loader, and shell globs never reach us.
 const defaultSuite = fs.readdirSync(path.join(root, 'test'))

@@ -45,7 +45,10 @@ const ACTIVE_CONTENT_RULES = [
   { name: 'XML entity declaration', pattern: /<!ENTITY/i },
   { name: 'external reference', pattern: /(?:href|src)\s*=\s*["']\s*(?:https?:)?\/\//i },
   { name: 'data: HTML payload', pattern: /data:text\/html/i },
-  { name: 'CSS import', pattern: /@import/i }
+  { name: 'CSS import', pattern: /@import/i },
+  // url(#gradient) local references are fine; only remote url() beacons out
+  // when an exported SVG is opened at file:// with no CSP.
+  { name: 'external CSS url()', pattern: /url\(\s*["']?\s*(?:https?:)?\/\//i }
 ];
 
 const NAMESPACE_ATTR = /xmlns(?::[a-z]+)?\s*=\s*["'][^"']*["']/gi;
