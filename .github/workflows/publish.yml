@@ -24,6 +24,7 @@ jobs:
       pull-requests: write
       id-token: write
 
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -56,9 +57,82 @@ jobs:
           done
 
       - name: Release
+        id: release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # npm auth comes from OIDC trusted publishing (id-token: write above);
-          # the trusted publisher for this repo/workflow is configured on npmjs.com.
           NPM_CONFIG_PROVENANCE: "true"
-        run: npx semantic-release
+        run: |
+          npx semantic-release
+          # semantic-release tags HEAD before publishing. Publishing the other
+          # channels from "the v* tag at HEAD" (not "a tag that is new this run")
+          # keeps re-runs idempotent: if PyPI or the tap failed after npm
+          # succeeded, re-running the job finishes the release instead of
+          # skipping it forever. PyPI has skip-existing and the tap step
+          # compares content, so nothing is double-published.
+          tag="$(git tag --points-at HEAD 'v*' | sort -V | tail -n1)"
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          echo "${tag:+Releasing ${tag}}${tag:-No release tag on this commit; downstream publishing skipped}"
+
+      - name: Setup Python
+        if: steps.release.outputs.tag != ''
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.x'
+
+      - name: Build the Python distribution
+        if: steps.release.outputs.tag != ''
+        env:
+          TF_ARCH_VERSION: ${{ steps.release.outputs.tag }}
+        run: |
+          # On a re-run semantic-release has nothing to do and leaves
+          # package.json at the committed version, so pin the working tree to
+          # the released tag before bundling it into the wheel.
+          npm version "${TF_ARCH_VERSION#v}" --no-git-tag-version --allow-same-version
+          python -m pip install --upgrade build twine
+          python -m build python/ --outdir python/dist
+          python -m twine check --strict python/dist/*
+          python -m pip install python/dist/*.whl
+          test "$(tf-arch --version)" = "${TF_ARCH_VERSION#v}"
+
+      - name: Publish to PyPI
+        if: steps.release.outputs.tag != ''
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+        with:
+          packages-dir: python/dist
+          skip-existing: true
+
+      - name: Update the Homebrew tap
+        if: steps.release.outputs.tag != ''
+        env:
+          # Optional fine-grained PAT, "Contents: read and write" on the tap
+          # repo only. Scoped to this single step on purpose: the formula is
+          # executable content for everyone who runs `brew install`, so the
+          # token must never sit in the environment of npm ci / build / test /
+          # semantic-release and their dependency trees. When absent this step
+          # is a no-op and the tap is updated by hand with scripts/brew-formula.mjs.
+          GH_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
+          TAG: ${{ steps.release.outputs.tag }}
+          TAP_REPO: mchittineni/homebrew-tap
+          FORMULA_PATH: Formula/tf-arch.rb
+        run: |
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "TAP_GITHUB_TOKEN not configured; skipping the Homebrew tap update."
+            exit 0
+          fi
+
+          node scripts/brew-formula.mjs "$TAG" > tf-arch.rb
+
+          # sha of the current file is required to update it; absent on first publish.
+          existing="$(gh api "repos/${TAP_REPO}/contents/${FORMULA_PATH}" --jq .sha 2>/dev/null || true)"
+          if [ -n "$existing" ] && gh api "repos/${TAP_REPO}/contents/${FORMULA_PATH}" --jq .content | base64 -d | cmp -s - tf-arch.rb; then
+            echo "Tap already at ${TAG}; nothing to do."
+            exit 0
+          fi
+
+          args=(-X PUT "repos/${TAP_REPO}/contents/${FORMULA_PATH}"
+                -f message="tf-arch ${TAG#v}"
+                -f content="$(base64 < tf-arch.rb | tr -d '\n')"
+                -f "committer[name]=github-actions[bot]"
+                -f "committer[email]=41898282+github-actions[bot]@users.noreply.github.com")
+          [ -n "$existing" ] && args+=(-f sha="$existing")
+          gh api "${args[@]}" --jq '.commit.html_url'
