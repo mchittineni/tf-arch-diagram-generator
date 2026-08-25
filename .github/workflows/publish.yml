@@ -84,9 +84,6 @@ jobs:
         env:
           TF_ARCH_VERSION: ${{ steps.release.outputs.tag }}
         run: |
-          # On a re-run semantic-release has nothing to do and leaves
-          # package.json at the committed version, so pin the working tree to
-          # the released tag before bundling it into the wheel.
           npm version "${TF_ARCH_VERSION#v}" --no-git-tag-version --allow-same-version
           python -m pip install --upgrade build twine
           python -m build python/ --outdir python/dist
@@ -104,12 +101,6 @@ jobs:
       - name: Update the Homebrew tap
         if: steps.release.outputs.tag != ''
         env:
-          # Optional fine-grained PAT, "Contents: read and write" on the tap
-          # repo only. Scoped to this single step on purpose: the formula is
-          # executable content for everyone who runs `brew install`, so the
-          # token must never sit in the environment of npm ci / build / test /
-          # semantic-release and their dependency trees. When absent this step
-          # is a no-op and the tap is updated by hand with scripts/brew-formula.mjs.
           GH_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
           TAG: ${{ steps.release.outputs.tag }}
           TAP_REPO: mchittineni/homebrew-tap
