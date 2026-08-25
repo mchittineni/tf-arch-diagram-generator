@@ -22,7 +22,8 @@ This is the part most likely to bite users, so it is worth stating plainly:
 
 - **Terraform plan JSON frequently contains sensitive values** — account ids, private CIDR ranges, connection strings, and any attribute your providers do not mark as sensitive.
 - The web viewer and the `tf-arch render` command process plans **entirely locally**. Nothing is uploaded, and the project has no network calls and no runtime dependencies. The only remote request the hosted page makes is to Google Fonts for typography.
-- `tf-arch serve` binds to `127.0.0.1` by default. If you override `--host`, you are exposing your plan to that network — do so deliberately.
+- `tf-arch serve` binds to `127.0.0.1` by default. If you override `--host`, you are exposing your plan to that network — do so deliberately; the CLI prints a warning when it binds anywhere else.
+- The pip package runs whatever `node` it finds on `PATH`, or the binary named by `TF_ARCH_NODE`. Treat that variable like `PATH` itself: a poisoned value executes attacker code with your privileges.
 - Exported SVGs embed resource names, addresses, CIDR ranges and zones. Treat an exported diagram with the same care as the plan it came from before attaching it to a ticket or a public PR.
 - `.gitignore` blocks `plan.json`, `*.tfplan` and `*.tfstate` so a plan is not committed by accident. Keep it that way.
 

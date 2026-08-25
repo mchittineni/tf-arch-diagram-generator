@@ -30,6 +30,9 @@ bin/cli.js                 tf-arch CLI (serve / render / inspect) with a hardene
 scripts/fetch-icons.mjs    semiannual vendor icon refresh (+ scripts/lib/unzip.mjs)
 scripts/scan-svg-assets.mjs blocks active content in the vendor SVGs
 scripts/check-coverage.mjs coverage gate (per-file floor + completeness check)
+scripts/brew-formula.mjs   emits the Homebrew formula for a published npm
+                           version (URL + verified sha256); publish.yml pushes
+                           its output to mchittineni/homebrew-tap
 src/index.js               programmatic API surface
 src/providers/             one directory per cloud — the extension point
   index.js                 registry + type→provider resolution
@@ -47,6 +50,9 @@ test/parser.test.js        parsing, hierarchy, multi-cloud, rendering, icon sizi
 test/app.test.js           full app mounted in jsdom (catches blank-page bugs)
 test/ui.test.js            canvas pan/zoom, filters, import modal, inspector diffs
 test/security.test.js      hostile-plan injection and malformed-input handling
+python/                    the PyPI distribution: a thin wrapper that bundles
+                           bin/ src/ dist/ into the wheel and runs them on the
+                           local Node (pyproject.toml, tf_arch/, tests/)
 test/api.test.js           the published npm API contract
 test/cli.test.js           tf-arch CLI behaviour, incl. the Node-version guard
 test/serve.test.js         the local server over real sockets (headers, traversal,
@@ -133,9 +139,15 @@ Two husky hooks run automatically after `npm install`:
 - `pre-commit` — runs `npm test`
 
 CI re-checks every commit in a PR plus the PR title, so a squash-merge title
-must be conventional too. **Do not** bump the version in `package.json` —
+must be conventional too. A checkout therefore always reports the version of
+the last *committed* `package.json` (`tf-arch --version` prints `1.0.0` from a
+clone even after later npm releases) — quote the npm/pip/brew version when
+filing bugs. **Do not** bump the version in `package.json` —
 semantic-release derives versions from git tags, and release notes are
-published on the GitHub Releases page.
+published on the GitHub Releases page. The same workflow publishes the Python
+wheel to PyPI and updates the Homebrew tap; if the tap step was skipped (no
+`TAP_GITHUB_TOKEN` secret) run `node scripts/brew-formula.mjs <version>` and
+commit the output as `Formula/tf-arch.rb` in the tap repo.
 
 ## Refreshing the vendor icon sets
 
@@ -163,6 +175,9 @@ anywhere.
 - One logical change per PR; describe what a reviewer should see differently in the diagram.
 - Use a Conventional Commit title (see above) — it becomes the release note.
 - Run `npm test` and `npm run build` before pushing.
+- If you touch `python/`, also run its suite (needs Node 22+ on PATH and `pip install build`):
+  `python -m build python/ --outdir python/dist && pip install python/dist/*.whl && python -m unittest discover -s python/tests -t python/tests`.
+  The Python package has no logic of its own beyond locating Node and shelling out — keep it that way; behaviour belongs in `bin/cli.js` so both distributions stay identical.
 - Add or update a test for parsing/hierarchy changes.
 - **Never commit real plan files.** Plans contain account ids, IP ranges and sometimes secrets. `.gitignore` blocks `plan.json`, `*.tfstate` and `*.tfplan`; sanitize anything you add to `examples/`.
 - No new runtime dependencies without discussing it in an issue first.

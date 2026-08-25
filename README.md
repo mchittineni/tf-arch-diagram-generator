@@ -1,13 +1,14 @@
 # Terraform Architecture Diagram Generator
 
 [![npm version](https://img.shields.io/npm/v/tf-arch-diagram-generator?logo=npm&color=cb3837)](https://www.npmjs.com/package/tf-arch-diagram-generator)
+[![PyPI version](https://img.shields.io/pypi/v/tf-arch-diagram-generator?logo=pypi&logoColor=white&color=3775a9)](https://pypi.org/project/tf-arch-diagram-generator/)
 [![CI](https://github.com/mchittineni/tf-arch-diagram-generator/actions/workflows/ci.yml/badge.svg)](https://github.com/mchittineni/tf-arch-diagram-generator/actions/workflows/ci.yml)
 [![node](https://img.shields.io/node/v/tf-arch-diagram-generator?logo=nodedotjs)](https://nodejs.org/en/about/previous-releases)
 [![license](https://img.shields.io/npm/l/tf-arch-diagram-generator)](LICENSE)
 
 Turn any Terraform plan into an interactive cloud architecture diagram — for **AWS**, **Google Cloud** and **Azure**, including plans that span all three.
 
-Point it at `terraform show -json` output and get a diagram with the real hierarchy (network → zone → subnet → resource), inferred traffic flows, and per-resource plan diffs. Runs as a CLI, a local web viewer, or a library.
+Point it at `terraform show -json` output and get a diagram with the real hierarchy (network → zone → subnet → resource), inferred traffic flows, and per-resource plan diffs. Runs as a CLI, a local web viewer, or a library — installable from **npm**, **PyPI** or **Homebrew**.
 
 ```bash
 terraform plan -out=tfplan && terraform show -json tfplan > plan.json
@@ -29,6 +30,8 @@ npx tf-arch-diagram-generator render plan.json -o arch.svg # standalone SVG, no 
 
 ## Install
 
+### npm
+
 ```bash
 # One-off, no install
 npx tf-arch-diagram-generator --help
@@ -40,7 +43,23 @@ npm install --save-dev tf-arch-diagram-generator
 npm install -g tf-arch-diagram-generator
 ```
 
-Requires Node 22 or newer (the oldest currently supported Node line). The command is `tf-arch`.
+### Python
+
+```bash
+pip install tf-arch-diagram-generator      # or: pipx install / uv tool install
+```
+
+The PyPI package is the same tool: it bundles the JavaScript and runs it on your local Node.js, so Terraform teams working in Python (Pulumi, CDKTF, Ansible, in-house tooling) get the `tf-arch` command and an importable `tf_arch` module without touching npm. It has no Python dependencies and downloads nothing at install or run time. See [Python API](#python-api) below.
+
+### Homebrew
+
+```bash
+brew install mchittineni/tap/tf-arch
+```
+
+The formula installs the published npm tarball and pulls in Homebrew's `node` for you. It lives in the [`mchittineni/homebrew-tap`](https://github.com/mchittineni/homebrew-tap) tap and is updated automatically by every release.
+
+Every route installs the same tool, and the command is always `tf-arch`. With npm or pip you need **Node 22 or newer** (the oldest currently supported Node line) installed yourself; the Python package looks for `node` on `PATH` and honours `TF_ARCH_NODE` to point at a specific binary.
 
 ## CLI
 
@@ -49,12 +68,15 @@ tf-arch serve [plan.json] [options]     Open the interactive viewer
 tf-arch render <plan.json> [options]    Write a standalone SVG (no browser)
 tf-arch inspect <plan.json> [options]   Print a plan summary
 
-  -o, --out <file>     Output path for render (default: architecture.svg)
-  -t, --title <text>   Diagram title
-  -p, --port <number>  Port for serve (default: 5173)
-      --host <host>    Host for serve (default: 127.0.0.1)
-      --open           Open the viewer in your default browser
-      --json           Machine-readable output for inspect
+  <plan.json> is the output of `terraform show -json`; pass `-` to read it from stdin.
+
+  render   -o, --out <file>     Output path (default: architecture.svg)
+           -t, --title <text>   Diagram title (default: derived from the file name)
+  serve    -p, --port <number>  Port (default: 5173; 0 picks a free port)
+               --host <host>    Bind address (default: 127.0.0.1 — anything else exposes the plan)
+               --open           Open the viewer in your default browser
+           -t, --title <text>   Title shown in the viewer
+  inspect      --json           Machine-readable output (stable, additive-only shape)
 ```
 
 ```bash
@@ -66,11 +88,13 @@ tf-arch render plan.json --out docs/architecture.svg --title "Production"
 
 # See how the plan was interpreted (useful when filing an issue)
 tf-arch inspect plan.json
-tf-arch inspect plan.json --json | jq '.providers'
+terraform show -json tfplan | tf-arch inspect - --json | jq '.providers'
 
 # Browse the built-in demo plans with no plan of your own
 tf-arch serve
 ```
+
+Exit codes: `0` success; `1` any error (usage, unreadable or invalid plan, port in use, write failure) with the reason on stderr. The pip-installed shim adds `127` when no Node.js ≥ 22 can be found. Non-fatal caveats — an empty plan, resources from providers the tool does not model, relationships left undrawn on a very large plan — are `Warning:` lines on stderr, so `inspect --json` writes nothing but JSON to stdout and is safe to pipe (`unmodelled` and `edgesTruncated` carry the same information in the JSON). Works fully offline and on Windows; the only remote request anywhere is the viewer's Google Fonts stylesheet.
 
 Running `tf-arch serve` with no plan shows eight bundled example architectures (AWS 3-tier / serverless / EKS, GCP web platform / serverless data, Azure 3-tier / AKS, and a multi-cloud landing zone). The same plans are in [`examples/`](examples/) if you want to try the CLI immediately.
 
@@ -107,7 +131,32 @@ import { planToSvg } from 'tf-arch-diagram-generator';
 const svg = await planToSvg(plan, { title: 'Production' });
 ```
 
-Also exported: `PROVIDERS`, `getProvider`, `getProviderForType`, `getIconForType`, `getMergedCategories`, `SAMPLE_PLANS`.
+Also exported: `PROVIDERS` (an object keyed by provider id: `aws`, `gcp`, `azure`), `getProvider`, `getProviderForType`, `getIconForType`, `getMergedCategories`, `SAMPLE_PLANS`. The `inspect --json` shape (`stats`, `providers`, `resources`, `edges`) is a stable, additive-only contract — the Python API returns it verbatim.
+
+### Python API
+
+The Python package exposes the three CLI commands as functions. Plans can be a path or an already-parsed `dict`:
+
+```python
+import json
+import tf_arch
+
+svg = tf_arch.render("plan.json", title="Production")      # SVG as a string
+tf_arch.render("plan.json", out="docs/architecture.svg")     # …or written to disk
+
+summary = tf_arch.inspect("plan.json")                       # same shape as `tf-arch inspect --json`
+summary["stats"]      # {'create': …, 'update': …, 'delete': …, 'noop': …, 'total': …}
+summary["providers"]  # [{'id': 'aws', 'shortName': 'AWS', …}, …]
+summary["resources"]  # address, type, provider, action, service, network, subnet, zone, region
+summary["edges"]      # inferred relationships
+
+plan = json.load(open("plan.json"))
+tf_arch.render(plan)                                         # dict input works too
+
+tf_arch.serve("plan.json", port=5173, open_browser=True)    # blocks; returns 130 on Ctrl+C
+```
+
+Errors surface as `tf_arch.CommandError` (carrying the CLI's message and exit status) or `tf_arch.NodeNotFoundError`; `tf_arch.run([...])` passes arbitrary arguments straight through to the CLI and returns a `CompletedProcess`. The package's source lives in [`python/`](python/).
 
 ### Diagrams in CI
 
@@ -237,7 +286,10 @@ last commit by hand.
 merge to `main` derives the next version from the commit types, tags the
 release, publishes to npm with provenance, and writes the notes to the
 [GitHub Releases](https://github.com/mchittineni/tf-arch-diagram-generator/releases)
-page. Never bump the version by hand.
+page. The same run then builds the Python distribution from the just-published
+files and uploads it to PyPI via trusted publishing, and regenerates the
+Homebrew formula (`scripts/brew-formula.mjs`) in the tap, so all three
+channels always carry the same version. Never bump the version by hand.
 
 ## Contributing
 
