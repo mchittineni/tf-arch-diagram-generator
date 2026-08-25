@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -109,4 +109,87 @@ test('tf-arch refuses to run on end-of-life Node versions', () => {
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
+});
+
+const withTempDir = (fn) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tf-arch-'));
+  try { return fn(dir); } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+};
+const runFull = (args, input) => {
+  const result = spawnSync(process.execPath, [cli, ...args], { encoding: 'utf8', input });
+  return { code: result.status, stdout: result.stdout, stderr: result.stderr };
+};
+
+test('value-taking options refuse a missing value or a following flag', () => {
+  for (const args of [['render', examplePlan, '--out'], ['render', examplePlan, '--title', '--out', 'x.svg'], ['serve', '--port']]) {
+    const { code, stderr } = runFull(args);
+    assert.equal(code, 1, args.join(' '));
+    assert.match(stderr, /requires a value/);
+  }
+});
+
+test('ports are validated instead of silently defaulting', () => {
+  for (const bad of ['abc', '-1', '70000', '5173.5']) {
+    const { code, stderr } = runFull(['serve', '--port', bad]);
+    assert.equal(code, 1, bad);
+    assert.match(stderr, /--port must be an integer between 0 and 65535/);
+  }
+});
+
+test('options for the wrong command and extra plan files are rejected', () => {
+  assert.match(runFull(['render', examplePlan, '--json']).stderr, /--json not valid for render/);
+  assert.match(runFull(['serve', '--out', 'x.svg']).stderr, /--out not valid for serve/);
+  assert.match(runFull(['inspect', examplePlan, examplePlan]).stderr, /Unexpected argument/);
+});
+
+test('version and help work as commands too', () => {
+  assert.match(runFull(['version']).stdout, /^\d+\.\d+\.\d+/);
+  assert.match(runFull(['help']).stdout, /Usage/);
+});
+
+test('a plan can be piped in on stdin', () => {
+  const plan = fs.readFileSync(examplePlan, 'utf8');
+  const report = JSON.parse(runFull(['inspect', '-', '--json'], plan).stdout);
+  assert.deepEqual(report.providers.map(p => p.id), ['aws', 'gcp', 'azure']);
+  assert.deepEqual(report.unmodelled, []);
+  assert.equal(report.edgesTruncated, 0);
+
+  withTempDir((dir) => {
+    const out = path.join(dir, 'stdin.svg');
+    const { code, stdout } = runFull(['render', '-', '--out', out], plan);
+    assert.equal(code, 0);
+    assert.match(stdout, /Wrote/);
+    assert.ok(fs.readFileSync(out, 'utf8').includes('<title>Terraform Architecture</title>') || fs.readFileSync(out, 'utf8').includes('Terraform Architecture'));
+  });
+});
+
+test('a binary tfplan and a directory are diagnosed, not reported as bad JSON', () => {
+  withTempDir((dir) => {
+    const tfplan = path.join(dir, 'tfplan');
+    fs.writeFileSync(tfplan, Buffer.from([0x50, 0x4b, 0x03, 0x04, 0, 0, 0, 0]));
+    assert.match(runFull(['inspect', tfplan]).stderr, /binary Terraform plan.*terraform show -json/);
+    assert.match(runFull(['inspect', dir]).stderr, /is a directory/);
+    assert.match(runFull(['render', examplePlan, '--out', dir]).stderr, /is a directory; give the SVG a file name/);
+  });
+});
+
+test('caveats go to stderr: empty plans and unmodelled providers, while --json stdout stays clean', () => {
+  withTempDir((dir) => {
+    const empty = path.join(dir, 'empty.json');
+    fs.writeFileSync(empty, '{}');
+    const { code, stderr } = runFull(['render', empty, '--out', path.join(dir, 'e.svg')]);
+    assert.equal(code, 0);
+    assert.match(stderr, /Warning: no resources found/);
+
+    const mixed = path.join(dir, 'mixed.json');
+    fs.writeFileSync(mixed, JSON.stringify({ resource_changes: [
+      { address: 'random_pet.x', type: 'random_pet', name: 'x', change: { actions: ['create'], after: {} } },
+      { address: 'aws_vpc.v', type: 'aws_vpc', name: 'v', change: { actions: ['create'], after: {} } }
+    ] }));
+    const result = runFull(['inspect', mixed, '--json']);
+    assert.match(result.stderr, /Warning: 1 resource\(s\) from providers this tool does not model yet.*random_pet/);
+    const report = JSON.parse(result.stdout); // stdout must parse on its own
+    assert.deepEqual(report.unmodelled, [{ address: 'random_pet.x', type: 'random_pet' }]);
+    assert.match(runFull(['render', mixed, '--out', path.join(dir, 'm.svg')]).stderr, /does not model yet/);
+  });
 });

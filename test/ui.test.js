@@ -328,14 +328,32 @@ test('inspector renders update diffs, deletions and value formatting', async () 
   assert.ok(document.getElementById('inspector-container').classList.contains('hidden'));
 });
 
-test('loadPlan surfaces a parse failure via alert without crashing the shell', async () => {
+test('a bad plan is rejected inline in the import dialog without tearing down the shell', async () => {
   const { app, window } = await mountApp();
-  const alerts = [];
-  global.alert = (message) => alerts.push(message);
+  const { document } = window;
+  global.alert = (message) => { throw new Error(`unexpected alert(): ${message}`); };
 
-  app.loadPlan('{broken');
-  assert.equal(alerts.length, 1);
-  assert.match(alerts[0], /Invalid JSON/);
-  // The previous diagram must still be intact.
-  assert.ok(window.document.querySelectorAll('.diagram-node').length > 0);
+  // Programmatic path: the failure is an exception, never an alert().
+  assert.throws(() => app.loadPlan('{broken'), /Could not load plan/);
+  assert.ok(document.querySelectorAll('.diagram-node').length > 0);
+
+  // Dialog path: valid JSON that is not a plan stays in the dialog with the reason shown.
+  const templateBefore = app.currentTemplateKey;
+  app.importModal.open();
+  assert.equal(document.activeElement, document.getElementById('import-textarea'));
+  document.getElementById('import-textarea').value = '42';
+  document.getElementById('btn-submit-import').click();
+
+  const backdrop = document.getElementById('import-modal-backdrop');
+  const error = document.getElementById('import-error-msg');
+  assert.ok(backdrop.classList.contains('open'), 'dialog stays open on failure');
+  assert.equal(error.style.display, 'block');
+  assert.match(error.textContent, /Could not load plan/);
+  assert.equal(app.currentTemplateKey, templateBefore, 'template selection rolls back');
+  assert.ok(document.querySelectorAll('.diagram-node').length > 0, 'previous diagram intact');
+
+  // Escape closes it like a native dialog and focus returns to the opener.
+  document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  assert.ok(!backdrop.classList.contains('open'));
+  assert.equal(document.querySelector('.modal-dialog').getAttribute('role'), 'dialog');
 });
