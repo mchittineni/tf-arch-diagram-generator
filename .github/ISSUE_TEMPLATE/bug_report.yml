@@ -53,6 +53,6 @@ body:
     id: environment
     attributes:
       label: Environment
-      description: Node version, OS, and whether you used the CLI or the web viewer
+      description: Node version, OS, how you installed it (npm / pip / Homebrew / clone), and whether you used the CLI, the Python API or the web viewer
     validations:
       required: true
