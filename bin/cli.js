@@ -212,13 +212,15 @@ function readPlan(planPath) {
     }
   } else {
     const resolved = path.resolve(process.cwd(), planPath);
-    if (!fs.existsSync(resolved)) {
-      throw new Error(`Plan file not found: ${resolved}`);
+    // Read first and classify the failure afterwards: a check-then-read pair
+    // would race with anything replacing the file in between.
+    try {
+      raw = fs.readFileSync(resolved, 'utf8');
+    } catch (err) {
+      if (err.code === 'ENOENT') throw new Error(`Plan file not found: ${resolved}`);
+      if (err.code === 'EISDIR') throw new Error(`${planPath} is a directory, not a plan file`);
+      throw new Error(`Could not read ${planPath} (${err.code || err.message})`);
     }
-    if (fs.statSync(resolved).isDirectory()) {
-      throw new Error(`${planPath} is a directory, not a plan file`);
-    }
-    raw = fs.readFileSync(resolved, 'utf8');
   }
 
   // A binary plan (`terraform plan -out=tfplan`) is a zip archive.
