@@ -129,8 +129,14 @@ export class App {
 
     // Initialize Import Modal
     this.importModal = new ImportModal(this.modalContainer, (customPlanJson) => {
+      const previousKey = this.currentTemplateKey;
       this.currentTemplateKey = 'custom';
-      this.loadPlan(customPlanJson);
+      try {
+        this.loadPlan(customPlanJson);
+      } catch (err) {
+        this.currentTemplateKey = previousKey;
+        throw err; // the dialog shows the message inline and stays open
+      }
     });
 
     this.bindCanvasControls();
@@ -215,9 +221,12 @@ export class App {
         this.diagramCanvas.fitToScreen();
       }, 50);
 
+      return true;
     } catch (err) {
       console.error('Error parsing plan:', err);
-      alert(`Error loading plan: ${err.message}`);
+      // The import dialog shows this inline and stays open; keep the previous
+      // diagram on screen rather than tearing it down for a bad paste.
+      throw new Error(`Could not load plan: ${err.message}`);
     }
   }
 
@@ -229,7 +238,9 @@ export class App {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `terraform-architecture-${Date.now()}.svg`;
+    const slug = String(this.planTitle || 'terraform-architecture')
+      .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'terraform-architecture';
+    link.download = `${slug}.svg`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
