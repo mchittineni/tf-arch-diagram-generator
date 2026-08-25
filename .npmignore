@@ -11,3 +11,4 @@ release-artifacts/
 .husky/
 commitlint.config.js
 .releaserc.json
+python/
