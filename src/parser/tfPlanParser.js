@@ -175,7 +175,21 @@ function buildNode({ address, id = address, name, type, providerNameRaw, action,
 
 /** `module.m["a"].aws_instance.web[0]` → `module.m.aws_instance.web` */
 function stripIndexes(address) {
-  return String(address || '').replace(/\[[^\]]*\]/g, '');
+  // Linear scan rather than /\[[^\]]*\]/g: addresses come from the plan, and
+  // a run of unmatched '[' makes that regex quadratic. Same semantics — an
+  // unterminated '[' is kept verbatim.
+  const text = String(address || '');
+  let out = '';
+  let i = 0;
+  while (i < text.length) {
+    const open = text.indexOf('[', i);
+    if (open === -1) { out += text.slice(i); break; }
+    const close = text.indexOf(']', open + 1);
+    if (close === -1) { out += text.slice(i); break; }
+    out += text.slice(i, open);
+    i = close + 1;
+  }
+  return out;
 }
 
 /**
