@@ -198,3 +198,120 @@ test('icons fit inside their node card', () => {
   assert.ok(ICON_SIZE < node.height, 'icon must be shorter than the card');
   assert.ok(ICON_SIZE < node.width / 2, 'icon must leave room for the labels');
 });
+
+/**
+ * Real `terraform show -json` output never carries Terraform addresses as
+ * attribute values: on create the reference is unresolved (listed under
+ * `after_unknown`, absent from `after`) and the link lives only in
+ * `configuration`; on no-op/update it is the cloud id (`subnet-0f9e…`).
+ */
+test('hierarchy resolves on a real-shaped create plan via configuration references', () => {
+  const parsed = parseTerraformPlan({
+    format_version: '1.2',
+    resource_changes: [
+      { address: 'aws_vpc.main', type: 'aws_vpc', name: 'main', provider_name: 'registry.terraform.io/hashicorp/aws',
+        change: { actions: ['create'], before: null, after: { cidr_block: '10.0.0.0/16' }, after_unknown: { id: true } } },
+      { address: 'aws_subnet.private[0]', type: 'aws_subnet', name: 'private', index: 0, provider_name: 'registry.terraform.io/hashicorp/aws',
+        change: { actions: ['create'], before: null, after: { cidr_block: '10.0.1.0/24' }, after_unknown: { id: true, vpc_id: true } } },
+      { address: 'aws_instance.web', type: 'aws_instance', name: 'web', provider_name: 'registry.terraform.io/hashicorp/aws',
+        change: { actions: ['create'], before: null, after: { instance_type: 't3.micro' }, after_unknown: { id: true, subnet_id: true } } },
+      { address: 'module.db.aws_db_instance.main', module_address: 'module.db', type: 'aws_db_instance', name: 'main', provider_name: 'registry.terraform.io/hashicorp/aws',
+        change: { actions: ['create'], before: null, after: { engine: 'postgres' }, after_unknown: { id: true, db_subnet_group_name: true } } },
+      { address: 'module.db.aws_db_subnet_group.main', module_address: 'module.db', type: 'aws_db_subnet_group', name: 'main', provider_name: 'registry.terraform.io/hashicorp/aws',
+        change: { actions: ['create'], before: null, after: {}, after_unknown: { id: true, subnet_ids: true } } }
+    ],
+    configuration: {
+      root_module: {
+        resources: [
+          { address: 'aws_vpc.main', type: 'aws_vpc', name: 'main', expressions: { cidr_block: { constant_value: '10.0.0.0/16' } } },
+          { address: 'aws_subnet.private', type: 'aws_subnet', name: 'private',
+            expressions: { vpc_id: { references: ['aws_vpc.main.id', 'aws_vpc.main'] } }, count_expression: { constant_value: 1 } },
+          { address: 'aws_instance.web', type: 'aws_instance', name: 'web',
+            expressions: { subnet_id: { references: ['aws_subnet.private[0].id', 'aws_subnet.private[0]', 'aws_subnet.private'] } } }
+        ],
+        module_calls: {
+          db: {
+            expressions: { subnet_ids: { references: ['aws_subnet.private[*].id', 'aws_subnet.private'] } },
+            module: {
+              resources: [
+                { address: 'aws_db_subnet_group.main', type: 'aws_db_subnet_group', name: 'main',
+                  expressions: { subnet_ids: { references: ['var.subnet_ids'] } } },
+                { address: 'aws_db_instance.main', type: 'aws_db_instance', name: 'main',
+                  expressions: { db_subnet_group_name: { references: ['aws_db_subnet_group.main.name', 'aws_db_subnet_group.main'] } } }
+              ]
+            }
+          }
+        }
+      }
+    }
+  });
+
+  const byId = Object.fromEntries(parsed.nodes.map(n => [n.id, n]));
+  assert.equal(byId['aws_subnet.private[0]'].parentNetworkId, 'aws_vpc.main');
+  assert.equal(byId['aws_instance.web'].parentSubnetId, 'aws_subnet.private[0]');
+  assert.equal(byId['aws_instance.web'].parentNetworkId, 'aws_vpc.main');
+  // Module-relative references are resolved against module-prefixed addresses.
+  assert.ok(byId['module.db.aws_db_instance.main'].configReferences.has('module.db.aws_db_subnet_group.main'));
+});
+
+test('hierarchy resolves on a real-shaped no-op plan via cloud ids', () => {
+  const parsed = parseTerraformPlan({
+    format_version: '1.2',
+    resource_changes: [
+      { address: 'aws_vpc.main', type: 'aws_vpc', name: 'main', provider_name: 'registry.terraform.io/hashicorp/aws',
+        change: { actions: ['no-op'], before: { id: 'vpc-0a1b2c3d4e5f60789' }, after: { id: 'vpc-0a1b2c3d4e5f60789' } } },
+      { address: 'aws_subnet.app', type: 'aws_subnet', name: 'app', provider_name: 'registry.terraform.io/hashicorp/aws',
+        change: { actions: ['no-op'], before: { id: 'subnet-0f9e8d7c6b5a43210', vpc_id: 'vpc-0a1b2c3d4e5f60789' }, after: { id: 'subnet-0f9e8d7c6b5a43210', vpc_id: 'vpc-0a1b2c3d4e5f60789' } } },
+      { address: 'aws_instance.web', type: 'aws_instance', name: 'web', provider_name: 'registry.terraform.io/hashicorp/aws',
+        change: { actions: ['update'], before: { subnet_id: 'subnet-0f9e8d7c6b5a43210' }, after: { subnet_id: 'subnet-0f9e8d7c6b5a43210', instance_type: 't3.small' } } },
+      { address: 'azurerm_virtual_network.vnet', type: 'azurerm_virtual_network', name: 'vnet', provider_name: 'registry.terraform.io/hashicorp/azurerm',
+        change: { actions: ['no-op'], before: null, after: { id: '/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg/providers/Microsoft.Network/virtualNetworks/vnet', location: 'westeurope' } } },
+      { address: 'azurerm_subnet.app', type: 'azurerm_subnet', name: 'app', provider_name: 'registry.terraform.io/hashicorp/azurerm',
+        change: { actions: ['no-op'], before: null, after: { id: '/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg/providers/Microsoft.Network/virtualNetworks/vnet/subnets/app', virtual_network_name: 'vnet' } } },
+      { address: 'azurerm_linux_virtual_machine.vm', type: 'azurerm_linux_virtual_machine', name: 'vm', provider_name: 'registry.terraform.io/hashicorp/azurerm',
+        change: { actions: ['no-op'], before: null, after: { network_interface_ids: ['/subscriptions/0/resourceGroups/rg/providers/Microsoft.Network/networkInterfaces/nic'] } } }
+    ]
+  });
+  const byId = Object.fromEntries(parsed.nodes.map(n => [n.id, n]));
+  assert.equal(byId['aws_subnet.app'].parentNetworkId, 'aws_vpc.main');
+  assert.equal(byId['aws_instance.web'].parentSubnetId, 'aws_subnet.app');
+  assert.equal(byId['azurerm_subnet.app'].parentNetworkId, 'azurerm_virtual_network.vnet');
+});
+
+test('malformed resource_changes entries are skipped or defaulted, deposed objects get unique ids', () => {
+  const parsed = parseTerraformPlan({
+    resource_changes: [
+      null,
+      'not an object',
+      { address: 'aws_instance.old', type: 'aws_instance', name: 'old', deposed: 'a1b2c3d4', change: { actions: ['delete'], before: { id: 'i-1' }, after: null } },
+      { address: 'aws_instance.old', type: 'aws_instance', name: 'old', change: { actions: ['create'], before: null, after: {} } },
+      { name: 'orphan', change: { actions: 'create' } },
+      { address: 'aws_s3_bucket.logs', type: 'aws_s3_bucket', name: 'logs', change: null }
+    ]
+  });
+  const ids = parsed.nodes.map(n => n.id);
+  assert.deepEqual(new Set(ids).size, ids.length, 'ids must be unique');
+  assert.ok(ids.includes('aws_instance.old#deposed-a1b2c3d4'));
+  assert.ok(ids.includes('aws_instance.old'));
+  assert.ok(ids.includes('unknown.orphan'));
+  assert.equal(parsed.stats.total, 4);
+  assert.equal(parsed.stats.delete, 1);
+  assert.equal(parsed.stats.noop, 2); // non-array actions and null change both mean no-op
+});
+
+test('edge inference is capped and reports how many relationships were dropped', async () => {
+  const { MAX_EDGES } = await import('../src/parser/tfPlanParser.js');
+  const resource_changes = [];
+  for (let i = 0; i < 150; i += 1) {
+    resource_changes.push({ address: `aws_instance.i${i}`, type: 'aws_instance', name: `i${i}`, change: { actions: ['create'], after: {} } });
+  }
+  for (let i = 0; i < 60; i += 1) {
+    resource_changes.push({ address: `aws_s3_bucket.b${i}`, type: 'aws_s3_bucket', name: `b${i}`, change: { actions: ['create'], after: {} } });
+  }
+  const parsed = parseTerraformPlan({ resource_changes });
+  assert.equal(parsed.edges.length, MAX_EDGES);
+  assert.ok(parsed.edgesTruncated > 0, 'excess pairs are counted, not drawn');
+  // Still renders in bounded time/space.
+  const svg = renderStandaloneSvg(computeArchitectureLayout(parsed), { title: 'big' });
+  assert.ok(svg.length < 50 * 1024 * 1024);
+});
