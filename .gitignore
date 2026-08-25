@@ -5,6 +5,12 @@ node_modules/
 dist/
 *.tsbuildinfo
 
+# Python distribution (python/)
+__pycache__/
+*.egg-info/
+python/build/
+python/tf_arch/_js/
+
 # Terraform — never commit real plans or state
 *.tfstate
 *.tfstate.*
