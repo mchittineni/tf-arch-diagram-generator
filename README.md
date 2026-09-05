@@ -19,9 +19,12 @@ npx tf-arch-diagram-generator render plan.json -o arch.svg # standalone SVG, no 
 
 ## Features
 
-- **Three clouds, one tool** — AWS (`aws_*`), Google Cloud (`google_*`) and Azure (`azurerm_*` / `azuread_*`), with 265 resource types mapped across 104 service icons — the **official vendor architecture icons**, embedded verbatim from the AWS / Google Cloud / Azure icon sets. A multi-provider plan renders as one band per cloud.
+- **Three clouds, one tool** — AWS (`aws_*`), Google Cloud (`google_*`) and Azure (`azurerm_*` / `azuread_*`), with 280+ resource types mapped across 104 service icons — the **official vendor architecture icons**, embedded verbatim from the AWS / Google Cloud / Azure icon sets. A multi-provider plan renders as one band per cloud.
 - **Real containment hierarchy** — VPC / VPC Network / Virtual Network, availability zones and regions, public vs. private subnets. Nested references resolve too (`network_interface[0].subnetwork`, `ip_configuration[0].subnet_id`, `default_node_pool[0].vnet_subnet_id`).
-- **Inferred traffic flows** — Route 53 → CloudFront → ALB → EC2 → RDS, Cloud DNS → Global LB → Cloud Run → Cloud SQL, DNS → Front Door → App Gateway → VMSS → Azure SQL, and many more. Inference is per-provider, so edges never cross clouds by accident.
+- **Deep reference & architectural links** — Extracts direct configuration expressions and attribute values (`kms_key_arn`, `security_groups`, `target_group_arns`, `iam_roles`, `route_table_id`, `vpc_peering_connection_id`, `private_endpoints`) alongside high-level traffic routing (Route 53 → CloudFront → ALB → ECS/EC2 → RDS, Cloud Armor → Backend Services → Cloud Run → Cloud SQL, Front Door → App Gateway → AKS → Key Vault).
+- **Perimeter-snapped connectors & relationship styling** — Connectors snap directly to outer card perimeters with clearance offsets so arrowheads never bury under cards. Styles distinguish traffic flows (solid blue/purple), security/encryption (dashed amber with security markers), VPC/VNet peering, and resource dependencies.
+- **Directional spotlighting & edge labels** — Hovering or selecting any resource highlights inbound (blue) vs outbound (violet) paths while dimming unrelated architecture. Edge labels can be toggled in one click or inspected via interactive edge tooltips.
+- **Connected links inspector** — Resource Inspector drawer includes an interactive **Connected Links** list showing all inbound and outbound architecture connections with one-click canvas navigation to peer nodes.
 - **Plan-aware** — `+ create`, `~ update`, `- destroy` badges on every node, with attribute-level before/after diffs in the inspector.
 - **Native provider vocabulary** — a GCP resource reads "VPC Network / Subnetwork / Zone / Labels"; an Azure one reads "Virtual Network / Subnet / Location / Resource Group".
 - **Headless rendering** — `tf-arch render` produces SVG in pure Node. No browser, no Puppeteer. Good for CI and for committing diagrams next to your modules.
@@ -49,7 +52,7 @@ npm install -g tf-arch-diagram-generator
 pip install tf-arch-diagram-generator      # or: pipx install / uv tool install
 ```
 
-The PyPI package is the same tool: it bundles the JavaScript and runs it on your local Node.js, so Terraform teams working in Python (Pulumi, CDKTF, Ansible, in-house tooling) get the `tf-arch` command and an importable `tf_arch` module without touching npm. It has no Python dependencies and downloads nothing at install or run time. See [Python API](#python-api) below.
+The PyPI package is the same tool: it bundles the JavaScript and runs it on your local Node.js, so Terraform teams working in Python (supports **Python 3.12, 3.13, and 3.14**) get the `tf-arch` command and an importable `tf_arch` module without touching npm. It has no third-party Python dependencies and downloads nothing at install or run time. See [Python API](#python-api) below.
 
 ### Homebrew
 
@@ -182,7 +185,7 @@ npm install
 npm run dev      # http://localhost:5173
 ```
 
-In the viewer: drag to pan, scroll to zoom, click a resource to inspect its planned diff, filter by cloud / service category / plan action, search by name or address, and export the diagram as SVG. Hovering a resource spotlights its connections — its edges light up with an animated flow while everything unrelated fades back — and the spotlight sticks while a resource is selected. Double-click a node (or click one in the sidebar) to glide the viewport to it; press `+` / `-` to zoom, `0` to reset, `F` to fit, `Esc` to deselect. **Import Plan** accepts a drag-and-dropped or pasted `plan.json`.
+In the viewer: drag to pan, scroll to zoom, click a resource to inspect its planned diff, filter by cloud / service category / plan action, search by name or address, and export the diagram as SVG. Hovering a resource spotlights its connections with directional distinction — inbound paths light up in blue (`.edge-inbound`), outbound paths in violet (`.edge-outbound`), while unrelated elements fade back. Connection labels can be toggled on/off in the toolbar, and connectors carry interactive hover tooltips and click-to-select navigation. The Resource Inspector includes an interactive **Connected Links** card showing all inbound and outbound architecture connections with one-click navigation to peer nodes. Double-click a node (or click one in the sidebar) to glide the viewport to it; press `+` / `-` to zoom, `0` to reset, `F` to fit, `Esc` to deselect. **Import Plan** accepts a drag-and-dropped or pasted `plan.json`.
 
 Exported SVGs keep a slice of that interactivity: opened in a browser they carry hover highlighting, native tooltips and the animated traffic flow.
 
@@ -197,8 +200,9 @@ Exported SVGs keep a slice of that interactivity: opened in a browser they carry
 | Compute | EC2, ASG, Lambda | Compute Engine, MIG, Cloud Run, Functions, App Engine | VM, VMSS, Functions, App Service |
 | Containers | ECS, EKS, ECR | GKE, Artifact Registry | AKS, Container Apps, ACR |
 | Data | RDS, DynamoDB, ElastiCache | Cloud SQL, Spanner, Firestore, Bigtable, Memorystore, BigQuery | Azure SQL, Cosmos DB, PostgreSQL, Redis, Synapse |
-| Messaging | SQS, SNS, EventBridge | Pub/Sub, Tasks, Eventarc | Service Bus, Event Grid, Event Hubs |
-| Edge | CloudFront, ALB, API Gateway, Route 53 | Global LB, Cloud CDN, API Gateway, Cloud DNS | Front Door, App Gateway, LB, APIM, Azure DNS |
+| Messaging | SQS, SNS, EventBridge, Step Functions, Kinesis | Pub/Sub, Tasks, Eventarc, Workflows | Service Bus, Event Grid, Event Hubs |
+| Security / Identity | IAM, KMS, Secrets Manager, WAF, ACM | IAM, KMS CMEK, Cloud Armor, Secret Manager | Key Vault, NSG rules, Entra ID |
+| Edge & Networking | Route 53, CloudFront, ALB, API Gateway, TGW, Peering, Route Tables | Global LB, Cloud CDN, API Gateway, Cloud DNS, Serverless VPC, Peering | Front Door, App Gateway, LB, APIM, Azure DNS, Private Endpoints, VNet Peering |
 
 Unmapped resource types still render, with that cloud's generic icon — nothing is silently dropped. Missing a service you use? [Open a mapping issue](.github/ISSUE_TEMPLATE/resource_mapping.yml) or send a one-line PR.
 

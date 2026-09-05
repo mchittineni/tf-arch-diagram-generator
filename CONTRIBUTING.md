@@ -37,18 +37,18 @@ src/index.js               programmatic API surface
 src/providers/             one directory per cloud — the extension point
   index.js                 registry + type→provider resolution
   aws/ gcp/ azure/         icons.js (SVG set) + index.js (provider definition)
-src/parser/                plan JSON → provider-agnostic resource graph
-src/canvas/layoutEngine.js graph → positioned containers and nodes
-src/canvas/svgRenderer.js  pure SVG string builders (browser + Node)
-src/canvas/DiagramCanvas.js interactive viewport (pan, zoom, filter, select)
+src/parser/                plan JSON → provider-agnostic resource graph & reference links
+src/canvas/layoutEngine.js graph → positioned containers, nodes & perimeter-snapped connectors
+src/canvas/svgRenderer.js  pure SVG string builders with traffic/security/peering styles
+src/canvas/DiagramCanvas.js interactive viewport (pan, zoom, filter, spotlight, label toggle)
 src/main.js                browser entry point (CSS + bootstrap only)
 src/app.js                 application shell — testable in jsdom
-src/components/            navbar, sidebar, inspector, import modal
+src/components/            navbar, sidebar, inspector (diffs & connected links), import modal
 src/data/samples/          demo plans per cloud
 examples/*.plan.json       the same plans as standalone files for the CLI
-test/parser.test.js        parsing, hierarchy, multi-cloud, rendering, icon sizing
+test/parser.test.js        parsing, hierarchy, multi-cloud, reference links, perimeter snapping
 test/app.test.js           full app mounted in jsdom (catches blank-page bugs)
-test/ui.test.js            canvas pan/zoom, filters, import modal, inspector diffs
+test/ui.test.js            canvas pan/zoom, spotlighting, edge toggle, inspector navigation
 test/security.test.js      hostile-plan injection and malformed-input handling
 python/                    the PyPI distribution: a thin wrapper that bundles
                            bin/ src/ dist/ into the wheel and runs them on the
