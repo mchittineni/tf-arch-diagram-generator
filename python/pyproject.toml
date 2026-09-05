@@ -19,7 +19,7 @@ dynamic = ["version"]
 description = "Turn any Terraform plan into an interactive cloud architecture diagram — AWS, Google Cloud and Azure, including multi-cloud plans."
 readme = "README.md"
 license = "MIT"
-requires-python = ">=3.9"
+requires-python = ">=3.12"
 authors = [{ name = "mchittineni", email = "manideep.chittineni@hotmail.com" }]
 keywords = [
   "terraform", "architecture", "diagram", "visualization",
@@ -35,6 +35,9 @@ classifiers = [
   "Programming Language :: JavaScript",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
   "Topic :: Software Development :: Documentation",
   "Topic :: System :: Systems Administration",
   "Topic :: Utilities",
