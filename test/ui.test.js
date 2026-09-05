@@ -357,3 +357,72 @@ test('a bad plan is rejected inline in the import dialog without tearing down th
   assert.ok(!backdrop.classList.contains('open'));
   assert.equal(document.querySelector('.modal-dialog').getAttribute('role'), 'dialog');
 });
+
+test('toggle edge labels button and edge interactions work seamlessly', async () => {
+  const { app, window, document } = await mountApp();
+  const canvas = app.diagramCanvas;
+
+  // Toggle edge labels via button
+  const toggleBtn = document.getElementById('btn-toggle-labels');
+  assert.ok(toggleBtn, 'toggle edge labels button must be present in canvas controls');
+  assert.ok(toggleBtn.classList.contains('active'), 'should be active initially');
+
+  // Click to toggle off
+  toggleBtn.dispatchEvent(mouse(window, 'click'));
+  assert.equal(canvas.showEdgeLabels, false);
+  assert.ok(!toggleBtn.classList.contains('active'));
+  assert.equal(document.querySelectorAll('.edge-label-badge').length, 0);
+
+  // Click to toggle on
+  toggleBtn.dispatchEvent(mouse(window, 'click'));
+  assert.equal(canvas.showEdgeLabels, true);
+  assert.ok(toggleBtn.classList.contains('active'));
+  assert.ok(document.querySelectorAll('.edge-label-badge').length > 0);
+
+  // Hovering an edge shows tooltip
+  const edgeEl = document.querySelector('.diagram-edge');
+  assert.ok(edgeEl, 'expected an edge in the diagram');
+  edgeEl.dispatchEvent(mouse(window, 'mouseenter', { clientX: 20, clientY: 20 }));
+  const tooltip = document.getElementById('canvas-tooltip');
+  assert.equal(tooltip.style.display, 'block');
+  assert.match(tooltip.innerHTML, /➔/);
+
+  // Mouseleave hides tooltip
+  edgeEl.dispatchEvent(mouse(window, 'mouseleave'));
+  assert.equal(tooltip.style.display, 'none');
+
+  // Clicking an edge selects the target node
+  const targetId = edgeEl.getAttribute('data-target');
+  edgeEl.dispatchEvent(mouse(window, 'click'));
+  assert.equal(canvas.selectedNodeId, targetId);
+});
+
+test('resource inspector renders connected architecture links and supports navigation', async () => {
+  const { app, window, document } = await mountApp();
+  const canvas = app.diagramCanvas;
+  const inspector = app.inspector;
+
+  const edge = app.layoutData.edges[0];
+  assert.ok(edge, 'expected an edge in sample layout');
+  const sourceNode = app.parsedPlan.nodes.find(n => n.id === edge.source);
+  const targetNode = app.parsedPlan.nodes.find(n => n.id === edge.target);
+
+  // Show inspector for sourceNode
+  inspector.show(sourceNode, app.layoutData.edges, app.parsedPlan.nodes);
+  let html = document.getElementById('inspector-container').innerHTML;
+  assert.match(html, /Connected Links/);
+  assert.match(html, /Outbound/);
+
+  // Show inspector for targetNode
+  inspector.show(targetNode, app.layoutData.edges, app.parsedPlan.nodes);
+  html = document.getElementById('inspector-container').innerHTML;
+  assert.match(html, /Connected Links/);
+  assert.match(html, /Inbound/);
+
+  // Clicking a connected link item navigates to peer node
+  const linkItem = document.querySelector('.connected-link-item');
+  assert.ok(linkItem, 'expected a connected link item');
+  const peerId = linkItem.getAttribute('data-peer-id');
+  linkItem.dispatchEvent(mouse(window, 'click'));
+  assert.equal(canvas.selectedNodeId, peerId);
+});
