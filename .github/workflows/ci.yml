@@ -47,6 +47,7 @@ jobs:
 
       - name: Render every example plan
         run: |
+          mkdir -p out
           for plan in examples/*.plan.json; do
             node bin/cli.js render "$plan" --out "out/$(basename "$plan" .plan.json).svg"
           done
@@ -55,7 +56,7 @@ jobs:
         run: npm pack --dry-run
 
       - name: Upload rendered diagrams
-        if: matrix.node == 22
+        if: matrix.node == 24
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: example-diagrams
@@ -69,7 +70,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python: ['3.9', '3.14']
+        python: ['3.12', '3.13', '3.14']
 
     steps:
       - name: Checkout repository
@@ -78,7 +79,7 @@ jobs:
       - name: Setup Node.js 22
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
 
       - name: Install dependencies
@@ -103,6 +104,7 @@ jobs:
 
       - name: Smoke-test the console script
         run: |
+          mkdir -p out
           test "$(tf-arch --version)" = "$(node -p "require('./package.json').version")"
           tf-arch render examples/multi-cloud.plan.json --out out/python-multi-cloud.svg
           tf-arch inspect examples/aws-eks.plan.json --json > /dev/null
