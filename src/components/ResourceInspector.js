@@ -11,14 +11,19 @@ import { escapeXml } from '../canvas/svgRenderer.js';
  */
 
 export class ResourceInspector {
-  constructor(containerElement, onClose) {
+  constructor(containerElement, onClose, onNodeNavigate) {
     this.container = containerElement;
     this.onClose = onClose;
+    this.onNodeNavigate = onNodeNavigate;
     this.currentNode = null;
+    this.edges = [];
+    this.allNodes = [];
   }
 
-  show(node) {
+  show(node, edges = [], allNodes = []) {
     this.currentNode = node;
+    this.edges = edges || [];
+    this.allNodes = allNodes || [];
     this.container.classList.remove('hidden');
     this.render();
   }
@@ -102,6 +107,65 @@ export class ResourceInspector {
       tagsHtml = `<span style="font-size:11px; color:var(--text-muted); font-style:italic;">No ${terms.tags.toLowerCase()} defined</span>`;
     }
 
+    // Architecture Links
+    const nodeId = n.id;
+    const incomingEdges = (this.edges || []).filter(e => e.target === nodeId);
+    const outgoingEdges = (this.edges || []).filter(e => e.source === nodeId);
+    const totalLinks = incomingEdges.length + outgoingEdges.length;
+
+    const nodeMap = new Map((this.allNodes || []).map(nodeItem => [nodeItem.id, nodeItem]));
+    const renderLinkRow = (edge, isIncoming) => {
+      const peerId = isIncoming ? edge.source : edge.target;
+      const peerNode = nodeMap.get(peerId);
+      const peerName = peerNode?.name || peerId;
+      const peerType = peerNode?.type || '';
+      const peerIconSvg = peerNode?.icon?.svg || '<svg viewBox="0 0 24 24" width="16" height="16"><circle cx="12" cy="12" r="8" fill="#94a3b8"/></svg>';
+      const relation = edge.relation || 'dependency';
+      const relationColor = relation === 'security' ? '#f59e0b' : relation === 'traffic' ? '#38bdf8' : relation === 'peering' ? '#10b981' : '#c084fc';
+
+      return `
+        <div class="connected-link-item" data-peer-id="${escapeXml(peerId)}" title="Navigate to ${escapeXml(peerName)}">
+          <div class="connected-link-icon">${peerIconSvg}</div>
+          <div class="connected-link-details">
+            <div class="connected-link-name">
+              <span class="connected-link-arrow" style="color:${isIncoming ? '#38bdf8' : '#c084fc'};">${isIncoming ? '←' : '→'}</span>
+              <span>${escapeXml(peerName)}</span>
+            </div>
+            <div class="connected-link-sub">${escapeXml(peerType)}</div>
+          </div>
+          <span class="relation-badge" style="border-color:${relationColor}40; background:${relationColor}18; color:${relationColor};">
+            ${escapeXml(edge.label || relation)}
+          </span>
+        </div>
+      `;
+    };
+
+    let linksCardHtml = '';
+    if (totalLinks > 0) {
+      linksCardHtml = `
+        <div class="inspector-card">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+            <div class="inspector-card-title" style="margin-bottom:0;">Connected Links</div>
+            <span class="stat-pill noop" style="font-size:10px; padding:2px 7px;">${totalLinks}</span>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            ${incomingEdges.length > 0 ? `
+              <div style="font-size:10px; font-weight:700; color:#94a3b8; text-transform:uppercase; margin-top:2px; letter-spacing:0.04em;">
+                Inbound (${incomingEdges.length})
+              </div>
+              ${incomingEdges.map(e => renderLinkRow(e, true)).join('')}
+            ` : ''}
+            ${outgoingEdges.length > 0 ? `
+              <div style="font-size:10px; font-weight:700; color:#94a3b8; text-transform:uppercase; margin-top:4px; letter-spacing:0.04em;">
+                Outbound (${outgoingEdges.length})
+              </div>
+              ${outgoingEdges.map(e => renderLinkRow(e, false)).join('')}
+            ` : ''}
+          </div>
+        </div>
+      `;
+    }
+
     this.container.innerHTML = `
       <div class="inspector-header">
         <div class="inspector-header-info">
@@ -146,6 +210,8 @@ export class ResourceInspector {
           </div>
         </div>
 
+        ${linksCardHtml}
+
         <!-- Resource Tags Card -->
         <div class="inspector-card">
           <div class="inspector-card-title">${escapeXml(terms.tags)}</div>
@@ -169,6 +235,15 @@ export class ResourceInspector {
     document.getElementById('btn-close-inspector').addEventListener('click', () => {
       this.hide();
       if (this.onClose) this.onClose();
+    });
+
+    this.container.querySelectorAll('.connected-link-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const peerId = item.getAttribute('data-peer-id');
+        if (peerId && this.onNodeNavigate) {
+          this.onNodeNavigate(peerId);
+        }
+      });
     });
   }
 
