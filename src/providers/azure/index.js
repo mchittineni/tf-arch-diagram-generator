@@ -199,6 +199,12 @@ export const azureProvider = {
     const eventGrid = by(n => n.type.startsWith('azurerm_eventgrid'));
     const eventHubs = by(n => n.type === 'azurerm_eventhub');
     const keyVaults = by(n => n.type === 'azurerm_key_vault');
+    const privateEndpoints = by(n => n.type === 'azurerm_private_endpoint');
+    const registries = by(n => n.type === 'azurerm_container_registry');
+    const backendPools = by(n => n.type === 'azurerm_lb_backend_address_pool');
+    const nsgs = by(n => n.type === 'azurerm_network_security_group');
+    const vnets = by(n => n.type === 'azurerm_virtual_network');
+    const peerings = by(n => n.type === 'azurerm_virtual_network_peering');
     const logAnalytics = by(n => n.type === 'azurerm_log_analytics_workspace');
     const appInsights = by(n => n.type === 'azurerm_application_insights');
 
@@ -231,8 +237,15 @@ export const azureProvider = {
     });
 
     lbs.forEach(lb => {
+      backendPools.forEach(bp => addEdge(lb.id, bp.id, 'Backend Pool'));
       vms.forEach(vm => addEdge(lb.id, vm.id, 'Balance'));
       scaleSets.forEach(ss => addEdge(lb.id, ss.id, 'Balance'));
+    });
+
+    backendPools.forEach(bp => {
+      vms.forEach(vm => addEdge(bp.id, vm.id, 'Pool Member'));
+      scaleSets.forEach(ss => addEdge(bp.id, ss.id, 'Pool Member'));
+      nics.forEach(nic => addEdge(bp.id, nic.id, 'Pool Member'));
     });
 
     apims.forEach(a => {
@@ -241,16 +254,34 @@ export const azureProvider = {
       webApps.forEach(w => addEdge(a.id, w.id, 'Backend'));
     });
 
-    nics.forEach(nic => vms.forEach(vm => addEdge(nic.id, vm.id, 'Attached')));
+    nics.forEach(nic => vms.forEach(vm => addEdge(nic.id, vm.id, 'Attached', 'dependency')));
 
-    aks.forEach(c => nodePools.forEach(np => addEdge(c.id, np.id, 'Managed')));
+    aks.forEach(c => nodePools.forEach(np => addEdge(c.id, np.id, 'Managed', 'dependency')));
+
+    registries.forEach(reg => {
+      nodePools.forEach(np => addEdge(reg.id, np.id, 'Container Image'));
+      aks.forEach(c => addEdge(reg.id, c.id, 'Container Image'));
+      containerApps.forEach(ca => addEdge(reg.id, ca.id, 'Container Image'));
+      funcApps.forEach(f => addEdge(reg.id, f.id, 'Container Image'));
+    });
 
     nats.forEach(nat => {
       scaleSets.forEach(ss => addEdge(nat.id, ss.id, 'Egress NAT'));
       nodePools.forEach(np => addEdge(nat.id, np.id, 'Egress NAT'));
     });
 
-    sqlServers.forEach(s => sql.forEach(d => addEdge(s.id, d.id, 'Hosts')));
+    sqlServers.forEach(s => sql.forEach(d => addEdge(s.id, d.id, 'Hosts', 'dependency')));
+
+    privateEndpoints.forEach(pe => {
+      storage.forEach(s => addEdge(pe.id, s.id, 'Private Link', 'security'));
+      keyVaults.forEach(kv => addEdge(pe.id, kv.id, 'Private Link', 'security'));
+      sqlServers.forEach(s => addEdge(pe.id, s.id, 'Private Link', 'security'));
+      cosmos.forEach(c => addEdge(pe.id, c.id, 'Private Link', 'security'));
+    });
+
+    nsgs.forEach(nsg => {
+      nics.forEach(nic => addEdge(nsg.id, nic.id, 'NSG Rule', 'security'));
+    });
 
     workloads.forEach(w => {
       sql.forEach(s => addEdge(w.id, s.id, 'TDS TCP:1433'));
@@ -258,9 +289,13 @@ export const azureProvider = {
       pg.forEach(p => addEdge(w.id, p.id, 'SQL TCP:5432/3306'));
       redis.forEach(r => addEdge(w.id, r.id, 'Cache'));
       storage.forEach(s => addEdge(w.id, s.id, 'Blobs/Queues'));
-      keyVaults.forEach(kv => addEdge(w.id, kv.id, 'Secrets'));
+      keyVaults.forEach(kv => addEdge(w.id, kv.id, 'Secrets', 'security'));
       sbQueues.forEach(q => addEdge(w.id, q.id, 'Enqueue'));
       sbTopics.forEach(t => addEdge(w.id, t.id, 'Publish'));
+    });
+
+    peerings.forEach(peer => {
+      vnets.forEach(vnet => addEdge(peer.id, vnet.id, 'VNet Peering', 'peering'));
     });
 
     sbTopics.forEach(t => funcApps.forEach(f => addEdge(t.id, f.id, 'Trigger')));

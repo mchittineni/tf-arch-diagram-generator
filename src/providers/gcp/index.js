@@ -44,6 +44,9 @@ const RESOURCE_MAP = {
   google_compute_health_check: 'load_balancer',
   google_compute_ssl_certificate: 'load_balancer',
   google_compute_managed_ssl_certificate: 'load_balancer',
+  google_certificate_manager_certificate: 'load_balancer',
+  google_compute_security_policy: 'firewall',
+  google_compute_network_peering: 'vpc_network',
   google_dns_managed_zone: 'cloud_dns',
   google_dns_record_set: 'cloud_dns',
   google_api_gateway_api: 'api_gateway',
@@ -82,6 +85,7 @@ const RESOURCE_MAP = {
   google_cloud_tasks_queue: 'cloud_tasks',
   google_cloud_scheduler_job: 'cloud_tasks',
   google_eventarc_trigger: 'eventarc',
+  google_workflows_workflow: 'cloud_tasks',
 
   // Security
   google_project_iam_member: 'iam',
@@ -152,6 +156,7 @@ export const gcpProvider = {
     const urlMaps = by(n => n.type === 'google_compute_url_map');
     const backends = by(n => n.type === 'google_compute_backend_service');
     const backendBuckets = by(n => n.type === 'google_compute_backend_bucket');
+    const armorList = by(n => n.type.includes('security_policy'));
     const apigws = by(n => n.type.startsWith('google_api_gateway'));
     const instanceGroups = by(n => n.type.includes('instance_group_manager'));
     const instances = by(n => n.type === 'google_compute_instance');
@@ -159,6 +164,7 @@ export const gcpProvider = {
     const functions = by(n => n.type.startsWith('google_cloudfunctions'));
     const gkeClusters = by(n => n.type === 'google_container_cluster');
     const nodePools = by(n => n.type === 'google_container_node_pool');
+    const artifacts = by(n => n.type === 'google_artifact_registry_repository');
     const sql = by(n => n.type === 'google_sql_database_instance');
     const spanner = by(n => n.type === 'google_spanner_instance');
     const firestore = by(n => n.type === 'google_firestore_database');
@@ -168,10 +174,16 @@ export const gcpProvider = {
     const topics = by(n => n.type === 'google_pubsub_topic');
     const subscriptions = by(n => n.type === 'google_pubsub_subscription');
     const scheduler = by(n => n.type === 'google_cloud_scheduler_job');
+    const tasks = by(n => n.type === 'google_cloud_tasks_queue');
+    const workflows = by(n => n.type.includes('workflow'));
     const eventarc = by(n => n.type === 'google_eventarc_trigger');
     const bq = by(n => n.type === 'google_bigquery_dataset');
     const nats = by(n => n.type === 'google_compute_router_nat');
     const secrets = by(n => n.type === 'google_secret_manager_secret');
+    const kmsKeys = by(n => n.type === 'google_kms_crypto_key');
+    const vpcConnectors = by(n => n.type === 'google_vpc_access_connector');
+    const networks = by(n => n.type === 'google_compute_network');
+    const peerings = by(n => n.type === 'google_compute_network_peering');
 
     dns.forEach(d => {
       globalLbs.forEach(lb => addEdge(d.id, lb.id, 'DNS'));
@@ -186,6 +198,10 @@ export const gcpProvider = {
       backendBuckets.forEach(b => addEdge(um.id, b.id, 'Static'));
     });
 
+    armorList.forEach(arm => {
+      backends.forEach(b => addEdge(arm.id, b.id, 'Cloud Armor', 'security'));
+    });
+
     backendBuckets.forEach(b => buckets.forEach(bk => addEdge(b.id, bk.id, 'Origin')));
 
     backends.forEach(b => {
@@ -194,18 +210,29 @@ export const gcpProvider = {
       nodePools.forEach(np => addEdge(b.id, np.id, 'NEG'));
     });
 
-    instanceGroups.forEach(ig => instances.forEach(i => addEdge(ig.id, i.id, 'Manages')));
+    instanceGroups.forEach(ig => instances.forEach(i => addEdge(ig.id, i.id, 'Manages', 'dependency')));
 
     apigws.forEach(gw => {
       functions.forEach(f => addEdge(gw.id, f.id, 'Invoke'));
       cloudRun.forEach(cr => addEdge(gw.id, cr.id, 'Invoke'));
     });
 
-    gkeClusters.forEach(c => nodePools.forEach(np => addEdge(c.id, np.id, 'Managed')));
+    gkeClusters.forEach(c => nodePools.forEach(np => addEdge(c.id, np.id, 'Managed', 'dependency')));
+
+    artifacts.forEach(ar => {
+      nodePools.forEach(np => addEdge(ar.id, np.id, 'Container Image'));
+      gkeClusters.forEach(c => addEdge(ar.id, c.id, 'Container Image'));
+      cloudRun.forEach(cr => addEdge(ar.id, cr.id, 'Container Image'));
+    });
 
     nats.forEach(nat => {
       instances.forEach(i => addEdge(nat.id, i.id, 'Egress NAT'));
       nodePools.forEach(np => addEdge(nat.id, np.id, 'Egress NAT'));
+    });
+
+    vpcConnectors.forEach(vc => {
+      cloudRun.forEach(cr => addEdge(cr.id, vc.id, 'Serverless VPC'));
+      functions.forEach(f => addEdge(f.id, vc.id, 'Serverless VPC'));
     });
 
     const workloads = [...functions, ...cloudRun, ...instances, ...nodePools];
@@ -217,7 +244,13 @@ export const gcpProvider = {
       redis.forEach(r => addEdge(w.id, r.id, 'Cache'));
       buckets.forEach(b => addEdge(w.id, b.id, 'Objects'));
       topics.forEach(t => addEdge(w.id, t.id, 'Publish'));
-      secrets.forEach(s => addEdge(w.id, s.id, 'Secrets'));
+      secrets.forEach(s => addEdge(w.id, s.id, 'Secrets', 'security'));
+    });
+
+    kmsKeys.forEach(key => {
+      buckets.forEach(b => addEdge(key.id, b.id, 'CMEK Encryption', 'security'));
+      sql.forEach(s => addEdge(key.id, s.id, 'CMEK Encryption', 'security'));
+      secrets.forEach(s => addEdge(key.id, s.id, 'KMS Encryption', 'security'));
     });
 
     topics.forEach(t => {
@@ -235,9 +268,23 @@ export const gcpProvider = {
       functions.forEach(f => addEdge(sc.id, f.id, 'Schedule'));
     });
 
+    tasks.forEach(t => {
+      cloudRun.forEach(cr => addEdge(t.id, cr.id, 'Task Worker'));
+      functions.forEach(f => addEdge(t.id, f.id, 'Task Worker'));
+    });
+
+    workflows.forEach(wf => {
+      cloudRun.forEach(cr => addEdge(wf.id, cr.id, 'Orchestrates'));
+      functions.forEach(f => addEdge(wf.id, f.id, 'Orchestrates'));
+    });
+
     eventarc.forEach(ev => {
       cloudRun.forEach(cr => addEdge(ev.id, cr.id, 'Event'));
       functions.forEach(f => addEdge(ev.id, f.id, 'Event'));
+    });
+
+    peerings.forEach(peer => {
+      networks.forEach(net => addEdge(peer.id, net.id, 'VPC Peering', 'peering'));
     });
   },
 
@@ -249,7 +296,8 @@ export const gcpProvider = {
       type === 'google_compute_url_map' ||
       type === 'google_compute_target_http_proxy' ||
       type === 'google_compute_target_https_proxy' ||
-      type === 'google_compute_managed_ssl_certificate';
+      type === 'google_compute_managed_ssl_certificate' ||
+      type === 'google_compute_security_policy';
   }
 };
 
