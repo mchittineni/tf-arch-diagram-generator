@@ -290,7 +290,8 @@ function referenceMatches(ref, candidate) {
   const candidates = [
     candidate.address, candidate.name,
     candidate.after?.id, candidate.before?.id,
-    candidate.after?.name, candidate.before?.name
+    candidate.after?.name, candidate.before?.name,
+    candidate.after?.arn, candidate.before?.arn
   ]
     .filter(v => typeof v === 'string' || typeof v === 'number')
     .map(String)
@@ -352,9 +353,10 @@ function resolveResourceParents(otherNodes, subnetNodes, networkNodes) {
 export const MAX_EDGES = 5000;
 
 /**
- * Builds architecture edges by delegating to each provider present in the plan.
- * Providers only see their own resources, so a multi-cloud plan gets one
- * coherent flow per cloud instead of cross-wired guesses.
+ * Builds architecture edges by:
+ * 1. Extracting real reference links from Terraform configuration expressions
+ *    and attribute values (e.g. security groups, KMS keys, target groups, IAM roles).
+ * 2. Delegating high-level architectural flows to each provider present in the plan.
  */
 function inferEdges(nodes) {
   const edges = [];
@@ -370,8 +372,10 @@ function inferEdges(nodes) {
       truncated += 1;
       return;
     }
-    edges.push({ id: `edge-${edges.length + 1}`, source: sourceId, target: targetId, label, type });
+    edges.push({ id: `edge-${edges.length + 1}`, source: sourceId, target: targetId, label, type, relation: type });
   };
+
+  inferReferenceEdges(nodes, addEdge);
 
   const byProvider = new Map();
   nodes.forEach(n => {
@@ -385,3 +389,165 @@ function inferEdges(nodes) {
 
   return { edges, truncated };
 }
+
+/**
+ * Extracts architectural edges from explicit Terraform expressions and attributes.
+ */
+function inferReferenceEdges(nodes, addEdge) {
+  const byAddressBase = new Map();
+  nodes.forEach(n => {
+    byAddressBase.set(stripIndexes(n.address), n);
+  });
+
+  const byProvider = groupByProvider(nodes);
+
+  nodes.forEach(source => {
+    // 1. Configuration expression references
+    if (source.configReferences && source.configReferences.size > 0) {
+      source.configReferences.forEach(targetAddressBase => {
+        const target = byAddressBase.get(targetAddressBase);
+        if (!target || target.id === source.id) return;
+        if (target.providerId !== source.providerId) return;
+
+        // Skip parent container containment (already rendered as visual boxes)
+        if (target.id === source.parentSubnetId || target.id === source.parentNetworkId) return;
+        if (source.id === target.parentSubnetId || source.id === target.parentNetworkId) return;
+
+        const { label, type, reverse } = classifyRelation(source, target);
+        if (reverse) {
+          addEdge(target.id, source.id, label, type);
+        } else {
+          addEdge(source.id, target.id, label, type);
+        }
+      });
+    }
+
+    // 2. Resolved attribute references in values (after / before)
+    const sameProviderCandidates = byProvider.get(source.providerId) || [];
+    findAttributeMatches(source, sameProviderCandidates, (target, attrKey) => {
+      if (!target || target.id === source.id) return;
+      if (target.id === source.parentSubnetId || target.id === source.parentNetworkId) return;
+      if (source.id === target.parentSubnetId || source.id === target.parentNetworkId) return;
+
+      const { label, type, reverse } = classifyRelation(source, target, attrKey);
+      if (reverse) {
+        addEdge(target.id, source.id, label, type);
+      } else {
+        addEdge(source.id, target.id, label, type);
+      }
+    });
+  });
+}
+
+function findAttributeMatches(source, candidates, onMatch) {
+  const values = [source.after, source.before];
+  const seenTargets = new Set();
+
+  const scan = (val, keyPath = '', depth = 0) => {
+    if (!val || depth > 16) return;
+    if (typeof val === 'string' || typeof val === 'number') {
+      const str = String(val);
+      if (str.length < 3) return;
+      for (const candidate of candidates) {
+        if (candidate.id === source.id || seenTargets.has(candidate.id)) continue;
+        if (referenceMatches(str, candidate)) {
+          seenTargets.add(candidate.id);
+          onMatch(candidate, keyPath);
+        }
+      }
+      return;
+    }
+    if (Array.isArray(val)) {
+      val.forEach((item, idx) => scan(item, `${keyPath}.${idx}`, depth + 1));
+      return;
+    }
+    if (typeof val === 'object') {
+      Object.entries(val).forEach(([k, v]) => {
+        // Skip tags or huge metadata blobs
+        if (k === 'tags' || k === 'labels' || k === 'tags_all') return;
+        scan(v, k, depth + 1);
+      });
+    }
+  };
+
+  values.forEach(v => scan(v));
+}
+
+function classifyRelation(source, target, attrKey = '') {
+  const sType = source.type.toLowerCase();
+  const tType = target.type.toLowerCase();
+  const key = String(attrKey).toLowerCase();
+
+  // KMS / Encryption
+  if (tType.includes('kms') || key.includes('kms') || key.includes('encryption')) {
+    return { label: 'KMS', type: 'security', reverse: false };
+  }
+  if (sType.includes('kms')) {
+    return { label: 'KMS', type: 'security', reverse: true };
+  }
+
+  // Security Groups / Firewalls / NSG
+  if (tType.includes('security_group') || tType.includes('firewall') || tType.includes('_nsg') || key.includes('security_group') || key.includes('nsg')) {
+    return { label: 'Secured By', type: 'security', reverse: false };
+  }
+
+  // IAM Role / Identity / Secrets
+  if (tType.includes('iam_role') || tType.includes('service_account') || key.includes('role_arn') || key.includes('role')) {
+    return { label: 'IAM Role', type: 'security', reverse: false };
+  }
+  if (tType.includes('secret') || key.includes('secret') || tType.includes('key_vault')) {
+    return { label: 'Secrets', type: 'security', reverse: false };
+  }
+
+  // Load balancing & listeners
+  if ((sType.includes('listener') || sType.includes('lb_rule')) && (tType.includes('target_group') || tType.includes('backend'))) {
+    return { label: 'Forward', type: 'traffic', reverse: false };
+  }
+  if (sType.includes('lb') && (tType.includes('target_group') || tType.includes('backend'))) {
+    return { label: 'Routes To', type: 'traffic', reverse: false };
+  }
+  if ((tType.includes('lb') || tType.includes('load_balancer')) && (sType.includes('listener') || sType.includes('target_group'))) {
+    return { label: 'Forward', type: 'traffic', reverse: true };
+  }
+  if (tType.includes('target_group') && (sType.includes('instance') || sType.includes('ecs') || sType.includes('app'))) {
+    return { label: 'Target', type: 'traffic', reverse: true };
+  }
+
+  // Container registries
+  if (tType.includes('ecr') || tType.includes('artifact_registry') || tType.includes('container_registry')) {
+    return { label: 'Image Pull', type: 'dependency', reverse: false };
+  }
+
+  // Peering & gateways
+  if (tType.includes('peering') || sType.includes('peering')) {
+    return { label: 'VPC Peering', type: 'peering', reverse: false };
+  }
+  if (tType.includes('transit_gateway') || sType.includes('transit_gateway')) {
+    return { label: 'TGW', type: 'peering', reverse: false };
+  }
+  if (sType.includes('route') && (tType.includes('gateway') || tType.includes('nat'))) {
+    return { label: 'Route', type: 'dependency', reverse: false };
+  }
+
+  // DNS & Edge
+  if (sType.includes('route53') || sType.includes('dns')) {
+    return { label: 'DNS', type: 'traffic', reverse: false };
+  }
+  if (tType.includes('route53') || tType.includes('dns')) {
+    return { label: 'DNS', type: 'traffic', reverse: true };
+  }
+
+  // Databases & Storage
+  if (tType.includes('db') || tType.includes('rds') || tType.includes('sql') || tType.includes('cosmos') || tType.includes('spanner')) {
+    return { label: 'Data', type: 'solid', reverse: false };
+  }
+  if (tType.includes('s3') || tType.includes('storage') || tType.includes('bucket')) {
+    return { label: 'Storage', type: 'solid', reverse: false };
+  }
+  if (tType.includes('queue') || tType.includes('topic') || tType.includes('sqs') || tType.includes('sns') || tType.includes('pubsub')) {
+    return { label: 'Messaging', type: 'solid', reverse: false };
+  }
+
+  return { label: 'References', type: 'solid', reverse: false };
+}
+
