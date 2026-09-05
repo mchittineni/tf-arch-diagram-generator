@@ -292,16 +292,95 @@ function layoutNetwork({ provider, network, networkSubnets, networkOnlyNodes, pr
 }
 
 function routeEdges(nodes, edges) {
-  const positions = new Map();
+  const nodeMap = new Map();
   nodes.forEach(n => {
     if (n.x !== undefined && n.y !== undefined) {
-      positions.set(n.id, { x: n.x + NODE_WIDTH / 2, y: n.y + NODE_HEIGHT / 2 });
+      nodeMap.set(n.id, n);
     }
   });
 
   return edges
-    .map(edge => ({ ...edge, srcPos: positions.get(edge.source), tgtPos: positions.get(edge.target) }))
-    .filter(e => e.srcPos && e.tgtPos);
+    .map(edge => {
+      const srcNode = nodeMap.get(edge.source);
+      const tgtNode = nodeMap.get(edge.target);
+      if (!srcNode || !tgtNode) return null;
+
+      const { srcPos, tgtPos, srcSide, tgtSide } = computePerimeterAnchor(srcNode, tgtNode);
+      return {
+        ...edge,
+        srcPos,
+        tgtPos,
+        srcSide,
+        tgtSide,
+        x1: srcPos.x,
+        y1: srcPos.y,
+        x2: tgtPos.x,
+        y2: tgtPos.y
+      };
+    })
+    .filter(Boolean);
+}
+
+/**
+ * Calculates connection anchor points at the outer boundaries of the source
+ * and target node cards so arrowheads and flow lines sit cleanly on the borders
+ * rather than terminating hidden beneath opaque card surfaces.
+ */
+function computePerimeterAnchor(srcNode, tgtNode) {
+  const w1 = srcNode.width || NODE_WIDTH;
+  const h1 = srcNode.height || NODE_HEIGHT;
+  const w2 = tgtNode.width || NODE_WIDTH;
+  const h2 = tgtNode.height || NODE_HEIGHT;
+
+  const cx1 = srcNode.x + w1 / 2;
+  const cy1 = srcNode.y + h1 / 2;
+  const cx2 = tgtNode.x + w2 / 2;
+  const cy2 = tgtNode.y + h2 / 2;
+
+  const dx = cx2 - cx1;
+  const dy = cy2 - cy1;
+
+  if (Math.abs(dx) < 1e-6 && Math.abs(dy) < 1e-6) {
+    return {
+      srcPos: { x: cx1, y: cy1 },
+      tgtPos: { x: cx2, y: cy2 },
+      srcSide: 'bottom',
+      tgtSide: 'top'
+    };
+  }
+
+  // Source box boundary ray intersection
+  const hw1 = w1 / 2;
+  const hh1 = h1 / 2;
+  const tx1 = Math.abs(dx) > 0 ? hw1 / Math.abs(dx) : Infinity;
+  const ty1 = Math.abs(dy) > 0 ? hh1 / Math.abs(dy) : Infinity;
+  const t1 = Math.min(tx1, ty1);
+
+  const srcX = cx1 + dx * t1;
+  const srcY = cy1 + dy * t1;
+  const srcSide = t1 === ty1 ? (dy > 0 ? 'bottom' : 'top') : (dx > 0 ? 'right' : 'left');
+
+  // Target box boundary ray intersection
+  const hw2 = w2 / 2;
+  const hh2 = h2 / 2;
+  const tx2 = Math.abs(dx) > 0 ? hw2 / Math.abs(dx) : Infinity;
+  const ty2 = Math.abs(dy) > 0 ? hh2 / Math.abs(dy) : Infinity;
+  const t2 = Math.min(tx2, ty2);
+
+  // Leave a 2px gap at the target perimeter for the arrowhead marker tip
+  const dist = Math.hypot(dx, dy);
+  const offset = Math.min(t2 + (dist > 0 ? 2 / dist : 0), 1);
+
+  const tgtX = cx2 - dx * offset;
+  const tgtY = cy2 - dy * offset;
+  const tgtSide = t2 === ty2 ? (dy > 0 ? 'top' : 'bottom') : (dx > 0 ? 'left' : 'right');
+
+  return {
+    srcPos: { x: Math.round(srcX * 10) / 10, y: Math.round(srcY * 10) / 10 },
+    tgtPos: { x: Math.round(tgtX * 10) / 10, y: Math.round(tgtY * 10) / 10 },
+    srcSide,
+    tgtSide
+  };
 }
 
 function computeBounds(nodes, containers, minWidth, minHeight) {
