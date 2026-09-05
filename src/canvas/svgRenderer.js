@@ -60,7 +60,7 @@ export const DIAGRAM_STYLE = `
     .diagram-node { cursor: pointer; transition: opacity 0.25s ease; }
     .diagram-node .node-card { transition: stroke 0.2s ease, stroke-width 0.2s ease; }
     .diagram-node:hover .node-card { stroke: #38bdf8; stroke-width: 2.5px; }
-    .diagram-edge { transition: opacity 0.25s ease; }
+    .diagram-edge { cursor: pointer; transition: opacity 0.25s ease; }
     .diagram-edge .edge-path { transition: stroke 0.2s ease, stroke-width 0.2s ease; }
     .diagram-edge .edge-flow {
       stroke-dasharray: 4 14;
@@ -71,6 +71,13 @@ export const DIAGRAM_STYLE = `
     .diagram-edge.active .edge-path { stroke: #38bdf8; stroke-width: 2.4px; }
     .diagram-edge:hover .edge-flow,
     .diagram-edge.active .edge-flow { stroke: #7dd3fc; stroke-opacity: 0.9; animation-duration: 0.8s; }
+    .diagram-edge.edge-inbound .edge-path { stroke: #38bdf8; stroke-width: 2.4px; marker-end: url(#arrowhead-inbound); }
+    .diagram-edge.edge-inbound .edge-flow { stroke: #7dd3fc; stroke-opacity: 0.95; }
+    .diagram-edge.edge-outbound .edge-path { stroke: #c084fc; stroke-width: 2.4px; marker-end: url(#arrowhead-outbound); }
+    .diagram-edge.edge-outbound .edge-flow { stroke: #d8b4fe; stroke-opacity: 0.95; }
+    .diagram-edge.edge-security .edge-path { stroke: #f59e0b; }
+    .diagram-edge.edge-security .edge-flow { stroke: #fbbf24; }
+    .diagram-edge.selected .edge-path { stroke: #38bdf8; stroke-width: 2.8px; }
     .diagram-node.dim, .diagram-edge.dim { opacity: 0.12; }
     @keyframes tfarch-flow { to { stroke-dashoffset: -18; } }
     @media (prefers-reduced-motion: reduce) {
@@ -88,8 +95,20 @@ export const SVG_DEFS = `
     <filter id="node-glow" x="-20%" y="-20%" width="140%" height="140%">
       <feDropShadow dx="0" dy="0" stdDeviation="8" flood-color="#38bdf8" flood-opacity="0.6"/>
     </filter>
-    <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
-      <polygon points="0 0, 8 3, 0 6" fill="#94a3b8" />
+    <marker id="arrowhead" markerWidth="9" markerHeight="7" refX="8" refY="3.5" orient="auto">
+      <polygon points="0 0.5, 8 3.5, 0 6.5" fill="#94a3b8" />
+    </marker>
+    <marker id="arrowhead-active" markerWidth="9" markerHeight="7" refX="8" refY="3.5" orient="auto">
+      <polygon points="0 0.5, 8 3.5, 0 6.5" fill="#38bdf8" />
+    </marker>
+    <marker id="arrowhead-inbound" markerWidth="9" markerHeight="7" refX="8" refY="3.5" orient="auto">
+      <polygon points="0 0.5, 8 3.5, 0 6.5" fill="#38bdf8" />
+    </marker>
+    <marker id="arrowhead-outbound" markerWidth="9" markerHeight="7" refX="8" refY="3.5" orient="auto">
+      <polygon points="0 0.5, 8 3.5, 0 6.5" fill="#c084fc" />
+    </marker>
+    <marker id="arrowhead-security" markerWidth="9" markerHeight="7" refX="8" refY="3.5" orient="auto">
+      <polygon points="0 0.5, 8 3.5, 0 6.5" fill="#f59e0b" />
     </marker>
   </defs>
 `;
@@ -161,24 +180,75 @@ function renderSubnet(c) {
   `;
 }
 
-export function renderEdges(edges = []) {
+export function renderEdges(edges = [], state = {}) {
+  const { showLabels = true, selectedEdgeId = null } = state;
+
   return edges.map(edge => {
-    const { srcPos, tgtPos, label } = edge;
+    const { srcPos, tgtPos, label, type = 'solid', id } = edge;
     const dx = tgtPos.x - srcPos.x;
     const dy = tgtPos.y - srcPos.y;
-    const path = `M ${srcPos.x} ${srcPos.y} C ${srcPos.x + dx * 0.25} ${srcPos.y + dy * 0.1}, ${srcPos.x + dx * 0.75} ${tgtPos.y - dy * 0.1}, ${tgtPos.x} ${tgtPos.y}`;
+
+    // Natural cubic Bezier curvature aligning with port exits/entries
+    let c1x, c1y, c2x, c2y;
+    if (Math.abs(dy) >= Math.abs(dx)) {
+      c1x = srcPos.x;
+      c1y = srcPos.y + dy * 0.45;
+      c2x = tgtPos.x;
+      c2y = tgtPos.y - dy * 0.45;
+    } else {
+      c1x = srcPos.x + dx * 0.45;
+      c1y = srcPos.y;
+      c2x = tgtPos.x - dx * 0.45;
+      c2y = tgtPos.y;
+    }
+
+    const path = `M ${srcPos.x} ${srcPos.y} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${tgtPos.x} ${tgtPos.y}`;
     const midX = (srcPos.x + tgtPos.x) / 2;
     const midY = (srcPos.y + tgtPos.y) / 2;
     const labelWidth = Math.max(46, String(label || '').length * 5.6 + 12);
 
+    const isSecurity = type === 'security';
+    const isDependency = type === 'dependency';
+    const isPeering = type === 'peering';
+
+    let strokeColor = 'rgba(148, 163, 184, 0.35)';
+    let flowColor = '#94a3b8';
+    let strokeDash = '';
+    let marker = 'url(#arrowhead)';
+
+    if (isSecurity) {
+      strokeColor = 'rgba(245, 158, 11, 0.45)';
+      flowColor = '#fbbf24';
+      strokeDash = 'stroke-dasharray="5 3"';
+      marker = 'url(#arrowhead-security)';
+    } else if (isDependency) {
+      strokeColor = 'rgba(129, 140, 248, 0.4)';
+      flowColor = '#a5b4fc';
+      strokeDash = 'stroke-dasharray="6 4"';
+    } else if (isPeering) {
+      strokeColor = 'rgba(192, 132, 252, 0.5)';
+      flowColor = '#d8b4fe';
+    }
+
+    const isSelected = selectedEdgeId === id;
+
     return `
-      <g class="diagram-edge" data-source="${escapeXml(edge.source)}" data-target="${escapeXml(edge.target)}">
-        <path class="edge-hit" d="${path}" fill="none" stroke="transparent" stroke-width="14"/>
-        <path class="edge-path" d="${path}" fill="none" stroke="rgba(148, 163, 184, 0.35)" stroke-width="1.8" marker-end="url(#arrowhead)"/>
-        <path class="edge-flow" d="${path}" fill="none" stroke="#94a3b8" stroke-opacity="0.45" stroke-width="2.2" stroke-linecap="round"/>
-        ${label ? `
-          <rect x="${midX - labelWidth / 2}" y="${midY - 9}" width="${labelWidth}" height="18" rx="4" fill="rgba(15, 23, 42, 0.88)" stroke="rgba(255,255,255,0.1)"/>
-          <text x="${midX}" y="${midY + 3}" text-anchor="middle" fill="#cbd5e1" font-size="9" font-family="${FONT_MONO}">${escapeXml(label)}</text>
+      <g class="diagram-edge ${type ? `edge-${type}` : ''} ${isSelected ? 'selected active' : ''}"
+         data-id="${escapeXml(id || '')}"
+         data-source="${escapeXml(edge.source)}"
+         data-target="${escapeXml(edge.target)}"
+         data-label="${escapeXml(label || '')}"
+         data-type="${escapeXml(type)}">
+        <title>${escapeXml(edge.source)} ➔ ${escapeXml(edge.target)}${label ? ` (${escapeXml(label)})` : ''}</title>
+        <path class="edge-hit" d="${path}" fill="none" stroke="transparent" stroke-width="16"/>
+        <path class="edge-path" d="${path}" fill="none" stroke="${strokeColor}" stroke-width="${isPeering ? '2.2' : '1.8'}" ${strokeDash} marker-end="${marker}"/>
+        <path class="edge-flow" d="${path}" fill="none" stroke="${flowColor}" stroke-opacity="0.5" stroke-width="2.2" stroke-linecap="round"/>
+        ${(showLabels && label) ? `
+          <g class="edge-label-group edge-label-badge">
+            <rect x="${midX - labelWidth / 2}" y="${midY - 9}" width="${labelWidth}" height="18" rx="4"
+                  fill="rgba(15, 23, 42, 0.92)" stroke="${isSecurity ? 'rgba(245, 158, 11, 0.3)' : 'rgba(255, 255, 255, 0.12)'}"/>
+            <text x="${midX}" y="${midY + 3}" text-anchor="middle" fill="${isSecurity ? '#fde68a' : '#cbd5e1'}" font-size="9" font-weight="600" font-family="${FONT_MONO}">${escapeXml(label)}</text>
+          </g>
         ` : ''}
       </g>
     `;
@@ -274,20 +344,35 @@ export function renderStandaloneSvg(layout, { title = 'Terraform Architecture', 
 }
 
 function renderLegend(x, y) {
-  const items = [
+  const actions = [
     ['create', 'Create (+)'],
     ['update', 'Modify (~)'],
     ['delete', 'Destroy (-)'],
     ['noop', 'Unchanged']
   ];
-  const parts = items.map(([action, label], i) => {
-    const itemX = x + i * 130;
+  const actionParts = actions.map(([action, label], i) => {
+    const itemX = x + i * 115;
     return `
       <circle cx="${itemX + 6}" cy="${y}" r="5" fill="${ACTION_COLORS[action]}"/>
-      <text x="${itemX + 18}" y="${y + 4}" fill="#94a3b8" font-size="11" font-family="${FONT_SANS}">${label}</text>
+      <text x="${itemX + 16}" y="${y + 4}" fill="#94a3b8" font-size="11" font-family="${FONT_SANS}">${label}</text>
     `;
   }).join('');
-  return `<g class="legend">${parts}</g>`;
+
+  const linkTypes = [
+    ['#38bdf8', 'Traffic Flow', ''],
+    ['#f59e0b', 'Security/Access', 'stroke-dasharray="3 2"'],
+    ['#818cf8', 'Dependency', 'stroke-dasharray="4 2"']
+  ];
+  const linksStartX = x + actions.length * 115 + 20;
+  const linkParts = linkTypes.map(([color, label, dash], i) => {
+    const itemX = linksStartX + i * 135;
+    return `
+      <line x1="${itemX}" y1="${y}" x2="${itemX + 22}" y2="${y}" stroke="${color}" stroke-width="2" ${dash}/>
+      <text x="${itemX + 28}" y="${y + 4}" fill="#94a3b8" font-size="11" font-family="${FONT_SANS}">${label}</text>
+    `;
+  }).join('');
+
+  return `<g class="legend">${actionParts}${linkParts}</g>`;
 }
 
 function hexToRgba(hex, alpha) {

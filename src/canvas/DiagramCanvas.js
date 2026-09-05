@@ -22,6 +22,7 @@ export class DiagramCanvas {
     this.filterAction = 'all';
     this.filterProvider = 'all';
     this.searchTerm = '';
+    this.showEdgeLabels = true;
 
     this.layoutData = null;
 
@@ -166,9 +167,52 @@ export class DiagramCanvas {
   render(layoutData) {
     this.layoutData = layoutData;
     this.containersLayer.innerHTML = renderContainers(layoutData.containers);
-    this.edgesLayer.innerHTML = renderEdges(layoutData.edges);
+    this.edgesLayer.innerHTML = renderEdges(layoutData.edges, { showLabels: this.showEdgeLabels });
+    this.bindEdgeInteractions();
     this.renderNodeLayer();
     this.notifyZoomChange();
+  }
+
+  toggleEdgeLabels(show) {
+    this.showEdgeLabels = typeof show === 'boolean' ? show : !this.showEdgeLabels;
+    if (this.layoutData) {
+      this.edgesLayer.innerHTML = renderEdges(this.layoutData.edges, { showLabels: this.showEdgeLabels });
+      this.bindEdgeInteractions();
+      this.highlightConnections(this.selectedNodeId);
+    }
+    return this.showEdgeLabels;
+  }
+
+  bindEdgeInteractions() {
+    this.edgesLayer.querySelectorAll('.diagram-edge').forEach(el => {
+      const source = el.getAttribute('data-source');
+      const target = el.getAttribute('data-target');
+      const edge = this.layoutData?.edges.find(e => e.source === source && e.target === target);
+
+      el.addEventListener('mouseenter', (e) => {
+        if (edge) this.showEdgeTooltip(e, edge);
+      });
+      el.addEventListener('mouseleave', () => {
+        this.hideTooltip();
+      });
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (target) this.selectNode(target);
+      });
+    });
+  }
+
+  showEdgeTooltip(e, edge) {
+    const rect = this.viewport.getBoundingClientRect();
+    this.tooltip.style.left = `${e.clientX - rect.left + 15}px`;
+    this.tooltip.style.top = `${e.clientY - rect.top + 15}px`;
+    const rel = edge.relation ? edge.relation.toUpperCase() : 'CONNECTS TO';
+    this.tooltip.innerHTML = `
+      <div style="font-weight:700; color:#38bdf8; margin-bottom:2px;">${escapeXml(edge.label || rel)}</div>
+      <div style="color:#94a3b8; font-size:10px; font-family:'JetBrains Mono';">${escapeXml(edge.source)} ➔ ${escapeXml(edge.target)}</div>
+      <div style="margin-top:4px; font-size:10px; color:#cbd5e1;">Relationship: <span style="font-weight:600; color:#a5b4fc;">${escapeXml(edge.relation || 'dependency')}</span></div>
+    `;
+    this.tooltip.style.display = 'block';
   }
 
   renderNodeLayer() {
@@ -210,14 +254,14 @@ export class DiagramCanvas {
   }
 
   /**
-   * Spotlights a node's direct connections: its edges light up (animated flow),
-   * unrelated nodes and edges fade back. Pass null to clear.
+   * Spotlights a node's direct connections: its edges light up with directional distinction
+   * (inbound vs outbound), unrelated nodes and edges fade back. Pass null to clear.
    */
   highlightConnections(id) {
     const edgeEls = this.edgesLayer.querySelectorAll('.diagram-edge');
     const nodeEls = this.nodesLayer.querySelectorAll('.diagram-node');
     if (!id) {
-      edgeEls.forEach(el => el.classList.remove('active', 'dim'));
+      edgeEls.forEach(el => el.classList.remove('active', 'edge-inbound', 'edge-outbound', 'dim'));
       nodeEls.forEach(el => el.classList.remove('dim'));
       return;
     }
@@ -226,8 +270,13 @@ export class DiagramCanvas {
     edgeEls.forEach(el => {
       const source = el.getAttribute('data-source');
       const target = el.getAttribute('data-target');
-      const connected = source === id || target === id;
+      const isOutbound = source === id;
+      const isInbound = target === id;
+      const connected = isOutbound || isInbound;
+
       el.classList.toggle('active', connected);
+      el.classList.toggle('edge-outbound', isOutbound);
+      el.classList.toggle('edge-inbound', isInbound);
       el.classList.toggle('dim', !connected);
       if (connected) { neighbors.add(source); neighbors.add(target); }
     });
