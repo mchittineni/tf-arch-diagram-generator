@@ -88,6 +88,12 @@ export class App {
                 <path d="M3 3v5h5"></path>
               </svg>
             </button>
+            <div class="control-divider"></div>
+            <button id="btn-toggle-labels" class="control-btn active" title="Toggle Connection Labels">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M4 9h16M4 15h16M10 3L8 21M16 3l-2 18"></path>
+              </svg>
+            </button>
           </div>
 
           <!-- Architecture Legend -->
@@ -118,14 +124,24 @@ export class App {
 
     // Initialize Diagram Canvas
     this.diagramCanvas = new DiagramCanvas(this.diagramMount, (node) => {
-      if (node) this.inspector.show(node);
+      if (node) this.inspector.show(node, this.layoutData?.edges, this.parsedPlan?.nodes);
       else this.inspector.hide();
     });
 
-    // Initialize Inspector
-    this.inspector = new ResourceInspector(this.inspectorContainer, () => {
-      this.diagramCanvas.selectNode(null);
-    });
+    // Initialize Inspector with navigation support
+    this.inspector = new ResourceInspector(
+      this.inspectorContainer,
+      () => {
+        this.diagramCanvas.selectNode(null);
+      },
+      (targetNodeId) => {
+        this.diagramCanvas.selectNode(targetNodeId);
+        const node = this.parsedPlan?.nodes.find(n => n.id === targetNodeId);
+        if (node) this.inspector.show(node, this.layoutData?.edges, this.parsedPlan?.nodes);
+        const layoutNode = this.layoutData?.nodes.find(n => n.id === targetNodeId);
+        if (layoutNode && layoutNode.x !== undefined) this.diagramCanvas.zoomToNode(layoutNode);
+      }
+    );
 
     // Initialize Import Modal
     this.importModal = new ImportModal(this.modalContainer, (customPlanJson) => {
@@ -157,6 +173,11 @@ export class App {
     bind('btn-zoom-out', () => this.diagramCanvas.zoom(0.8));
     bind('btn-fit-screen', () => this.diagramCanvas.animated(() => this.diagramCanvas.fitToScreen()));
     bind('btn-reset-view', () => this.diagramCanvas.animated(() => this.diagramCanvas.resetZoom()));
+    bind('btn-toggle-labels', () => {
+      const isVisible = this.diagramCanvas.toggleEdgeLabels();
+      const btn = document.getElementById('btn-toggle-labels');
+      if (btn) btn.classList.toggle('active', isVisible);
+    });
   }
 
   loadPlan(planJson, title) {
@@ -206,7 +227,7 @@ export class App {
         onResourceClick: (id) => {
           this.diagramCanvas.selectNode(id);
           const node = this.parsedPlan.nodes.find(n => n.id === id);
-          if (node) this.inspector.show(node);
+          if (node) this.inspector.show(node, this.layoutData?.edges, this.parsedPlan?.nodes);
           // Glide the canvas to the picked resource so the sidebar drives the view.
           const layoutNode = this.layoutData?.nodes.find(n => n.id === id);
           if (layoutNode && layoutNode.x !== undefined) this.diagramCanvas.zoomToNode(layoutNode);
