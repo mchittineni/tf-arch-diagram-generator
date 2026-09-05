@@ -315,3 +315,120 @@ test('edge inference is capped and reports how many relationships were dropped',
   const svg = renderStandaloneSvg(computeArchitectureLayout(parsed), { title: 'big' });
   assert.ok(svg.length < 50 * 1024 * 1024);
 });
+
+test('reference-based edge extraction extracts links from configuration expressions and attributes', () => {
+  const plan = {
+    resource_changes: [
+      {
+        address: 'aws_kms_key.app_key',
+        type: 'aws_kms_key',
+        name: 'app_key',
+        provider_name: 'registry.terraform.io/hashicorp/aws',
+        change: { actions: ['create'], after: { arn: 'arn:aws:kms:us-east-1:123456789012:key/test-key-id' } }
+      },
+      {
+        address: 'aws_s3_bucket.secure_data',
+        type: 'aws_s3_bucket',
+        name: 'secure_data',
+        provider_name: 'registry.terraform.io/hashicorp/aws',
+        change: {
+          actions: ['create'],
+          after: {
+            server_side_encryption_configuration: {
+              rule: { apply_server_side_encryption_by_default: { kms_master_key_id: 'arn:aws:kms:us-east-1:123456789012:key/test-key-id' } }
+            }
+          }
+        }
+      },
+      {
+        address: 'aws_lb.web',
+        type: 'aws_lb',
+        name: 'web',
+        provider_name: 'registry.terraform.io/hashicorp/aws',
+        change: { actions: ['create'], after: { arn: 'arn:aws:elasticloadbalancing:us-east-1:123456789012:loadbalancer/app/web/123' } }
+      },
+      {
+        address: 'aws_lb_target_group.app',
+        type: 'aws_lb_target_group',
+        name: 'app',
+        provider_name: 'registry.terraform.io/hashicorp/aws',
+        change: { actions: ['create'], after: { arn: 'arn:aws:elasticloadbalancing:us-east-1:123456789012:targetgroup/app/456' } }
+      }
+    ],
+    configuration: {
+      root_module: {
+        resources: [
+          {
+            address: 'aws_lb.web',
+            type: 'aws_lb',
+            name: 'web',
+            expressions: {
+              default_target_group_arn: {
+                references: ['aws_lb_target_group.app.arn', 'aws_lb_target_group.app']
+              }
+            }
+          }
+        ]
+      }
+    }
+  };
+
+  const parsed = parseTerraformPlan(plan);
+  const kmsEdge = parsed.edges.find(e => e.source === 'aws_s3_bucket.secure_data' && e.target === 'aws_kms_key.app_key');
+  assert.ok(kmsEdge, 'should infer edge from S3 bucket to KMS key via attribute ARN match');
+  assert.equal(kmsEdge.relation, 'security');
+
+  const lbEdge = parsed.edges.find(e => e.source === 'aws_lb.web' && e.target === 'aws_lb_target_group.app');
+  assert.ok(lbEdge, 'should infer edge from ALB to Target Group via configuration references');
+  assert.equal(lbEdge.relation, 'traffic');
+});
+
+test('layout engine routes edges snapping to node perimeter with arrowhead clearance', () => {
+  const plan = {
+    resource_changes: [
+      {
+        address: 'aws_instance.web',
+        type: 'aws_instance',
+        name: 'web',
+        provider_name: 'registry.terraform.io/hashicorp/aws',
+        change: { actions: ['create'], after: {} }
+      },
+      {
+        address: 'aws_s3_bucket.data',
+        type: 'aws_s3_bucket',
+        name: 'data',
+        provider_name: 'registry.terraform.io/hashicorp/aws',
+        change: { actions: ['create'], after: {} }
+      }
+    ],
+    configuration: {
+      root_module: {
+        resources: [
+          {
+            address: 'aws_instance.web',
+            type: 'aws_instance',
+            name: 'web',
+            expressions: {
+              bucket: { references: ['aws_s3_bucket.data.bucket'] }
+            }
+          }
+        ]
+      }
+    }
+  };
+
+  const parsed = parseTerraformPlan(plan);
+  const layout = computeArchitectureLayout(parsed);
+  assert.equal(layout.edges.length, 1);
+
+  const edge = layout.edges[0];
+  const sourceNode = layout.nodes.find(n => n.id === edge.source);
+  const targetNode = layout.nodes.find(n => n.id === edge.target);
+
+  // Target anchor should snap to card perimeter, not card center (targetNode.x + targetNode.width / 2)
+  const targetCenterX = targetNode.x + targetNode.width / 2;
+  const targetCenterY = targetNode.y + targetNode.height / 2;
+  const isAtCenter = Math.abs(edge.x2 - targetCenterX) < 1 && Math.abs(edge.y2 - targetCenterY) < 1;
+  assert.ok(!isAtCenter, 'connector endpoint must snap to perimeter, not node center');
+  assert.ok(edge.x1 !== undefined && edge.y1 !== undefined && edge.x2 !== undefined && edge.y2 !== undefined);
+});
