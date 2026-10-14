@@ -67,12 +67,31 @@ export function getProvider(providerId) {
 }
 
 /**
+ * Resolves a resource type to an icon key: an exact `resourceMap` entry first,
+ * then the longest `servicePrefixes` token that equals the type or prefixes it
+ * at a `_` boundary (`aws_glue` covers `aws_glue_job`, not `aws_gluex`), then
+ * the provider's generic icon.
+ */
+export function resolveIconKey(provider, resourceType) {
+  const exact = provider.resourceMap[resourceType];
+  if (exact) return exact;
+  let best = '';
+  for (const token of Object.keys(provider.servicePrefixes || {})) {
+    if (token.length > best.length &&
+        (resourceType === token || resourceType.startsWith(`${token}_`))) {
+      best = token;
+    }
+  }
+  return best ? provider.servicePrefixes[best] : provider.genericIconKey;
+}
+
+/**
  * Returns icon + category metadata for a Terraform resource type,
  * resolved through the owning provider's icon set.
  */
 export function getIconForType(resourceType) {
   const provider = getProviderForType(resourceType);
-  const iconKey = provider.resourceMap[resourceType] || provider.genericIconKey;
+  const iconKey = resolveIconKey(provider, resourceType);
   const iconDef = provider.icons[iconKey] || provider.icons[provider.genericIconKey];
   const categoryDef = provider.categories[iconDef.category] || provider.categories.general;
 
