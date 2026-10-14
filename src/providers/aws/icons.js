@@ -17,140 +17,192 @@ export const CATEGORIES = {
   integration: { name: "Application Integration", color: "#FF4F8B", bgColor: "rgba(255, 79, 139, 0.15)" },
   analytics: { name: "Analytics", color: "#8C4FFF", bgColor: "rgba(140, 79, 255, 0.15)" },
   containers: { name: "Containers", color: "#ED7100", bgColor: "rgba(237, 113, 0, 0.15)" },
+  ai: { name: "Machine Learning", color: "#01A88D", bgColor: "rgba(1, 168, 141, 0.15)" },
+  devtools: { name: "Developer Tools", color: "#C925D1", bgColor: "rgba(201, 37, 209, 0.15)" },
   general: { name: "General", color: "#232F3E", bgColor: "rgba(35, 47, 62, 0.15)" }
 };
 
+/** Icon key → [category, display name]; the artwork comes from officialIcons.js. */
+const ICON_DEFS = {
+  ec2: ["compute", "Amazon EC2"],
+  autoscaling: ["compute", "Auto Scaling"],
+  app_autoscaling: ["compute", "Application Auto Scaling"],
+  autoscaling_plans: ["management", "AWS Auto Scaling"],
+  lambda: ["compute", "AWS Lambda"],
+  serverless_repo: ["compute", "Serverless Application Repository"],
+  batch: ["compute", "AWS Batch"],
+  elastic_beanstalk: ["compute", "AWS Elastic Beanstalk"],
+  lightsail: ["compute", "Amazon Lightsail"],
+  app_runner: ["compute", "AWS App Runner"],
+  image_builder: ["compute", "EC2 Image Builder"],
+  outposts: ["compute", "AWS Outposts"],
+  ecs: ["containers", "Amazon ECS"],
+  eks: ["containers", "Amazon EKS"],
+  ecr: ["containers", "Amazon ECR"],
+  vpc: ["networking", "Amazon VPC"],
+  subnet: ["networking", "VPC Subnet"],
+  internet_gateway: ["networking", "Internet Gateway"],
+  nat_gateway: ["networking", "NAT Gateway"],
+  security_group: ["security", "Security Group"],
+  privatelink: ["networking", "AWS PrivateLink"],
+  transit_gateway: ["networking", "AWS Transit Gateway"],
+  site_to_site_vpn: ["networking", "AWS Site-to-Site VPN"],
+  client_vpn: ["networking", "AWS Client VPN"],
+  direct_connect: ["networking", "AWS Direct Connect"],
+  cloud_wan: ["networking", "AWS Cloud WAN"],
+  global_accelerator: ["networking", "AWS Global Accelerator"],
+  cloud_map: ["networking", "AWS Cloud Map"],
+  app_mesh: ["networking", "AWS App Mesh"],
+  vpc_lattice: ["networking", "Amazon VPC Lattice"],
+  verified_access: ["networking", "AWS Verified Access"],
+  alb: ["networking", "Elastic Load Balancing"],
+  cloudfront: ["networking", "Amazon CloudFront"],
+  route53: ["networking", "Amazon Route 53"],
+  apigateway: ["networking", "Amazon API Gateway"],
+  s3: ["storage", "Amazon S3"],
+  s3_outposts: ["storage", "Amazon S3 on Outposts"],
+  s3_glacier: ["storage", "Amazon S3 Glacier"],
+  ebs: ["storage", "Amazon EBS"],
+  efs: ["storage", "Amazon EFS"],
+  fsx: ["storage", "Amazon FSx"],
+  fsx_lustre: ["storage", "Amazon FSx for Lustre"],
+  fsx_ontap: ["storage", "Amazon FSx for NetApp ONTAP"],
+  fsx_openzfs: ["storage", "Amazon FSx for OpenZFS"],
+  fsx_windows: ["storage", "Amazon FSx for Windows File Server"],
+  file_cache: ["storage", "Amazon File Cache"],
+  backup: ["storage", "AWS Backup"],
+  storage_gateway: ["storage", "AWS Storage Gateway"],
+  drs: ["storage", "AWS Elastic Disaster Recovery"],
+  transfer_family: ["storage", "AWS Transfer Family"],
+  datasync: ["storage", "AWS DataSync"],
+  rds: ["database", "Amazon RDS"],
+  aurora: ["database", "Amazon Aurora"],
+  dynamodb: ["database", "Amazon DynamoDB"],
+  elasticache: ["database", "Amazon ElastiCache"],
+  memorydb: ["database", "Amazon MemoryDB for Redis"],
+  documentdb: ["database", "Amazon DocumentDB"],
+  neptune: ["database", "Amazon Neptune"],
+  keyspaces: ["database", "Amazon Keyspaces"],
+  timestream: ["database", "Amazon Timestream"],
+  qldb: ["database", "Amazon QLDB"],
+  dms: ["database", "AWS Database Migration Service"],
+  redshift: ["analytics", "Amazon Redshift"],
+  athena: ["analytics", "Amazon Athena"],
+  glue: ["analytics", "AWS Glue"],
+  databrew: ["analytics", "AWS Glue DataBrew"],
+  emr: ["analytics", "Amazon EMR"],
+  kinesis_data_streams: ["analytics", "Amazon Kinesis Data Streams"],
+  kinesis_firehose: ["analytics", "Amazon Data Firehose"],
+  kinesis_analytics: ["analytics", "Amazon Managed Service for Apache Flink"],
+  kinesis_video: ["analytics", "Amazon Kinesis Video Streams"],
+  msk: ["analytics", "Amazon MSK"],
+  opensearch: ["analytics", "Amazon OpenSearch Service"],
+  cloudsearch: ["analytics", "Amazon CloudSearch"],
+  quicksight: ["analytics", "Amazon QuickSight"],
+  lake_formation: ["analytics", "AWS Lake Formation"],
+  data_exchange: ["analytics", "AWS Data Exchange"],
+  data_pipeline: ["analytics", "AWS Data Pipeline"],
+  datazone: ["analytics", "Amazon DataZone"],
+  clean_rooms: ["analytics", "AWS Clean Rooms"],
+  finspace: ["analytics", "Amazon FinSpace"],
+  sqs: ["integration", "Amazon SQS"],
+  sns: ["integration", "Amazon SNS"],
+  eventbridge: ["integration", "Amazon EventBridge"],
+  step_functions: ["integration", "AWS Step Functions"],
+  appsync: ["integration", "AWS AppSync"],
+  mq: ["integration", "Amazon MQ"],
+  appflow: ["integration", "Amazon AppFlow"],
+  mwaa: ["integration", "Amazon MWAA"],
+  ses: ["integration", "Amazon SES"],
+  pinpoint: ["integration", "Amazon Pinpoint"],
+  connect: ["integration", "Amazon Connect"],
+  chime: ["integration", "Amazon Chime"],
+  workmail: ["integration", "Amazon WorkMail"],
+  iot_core: ["integration", "AWS IoT Core"],
+  iot_analytics: ["integration", "AWS IoT Analytics"],
+  iot_events: ["integration", "AWS IoT Events"],
+  iot_greengrass: ["integration", "AWS IoT Greengrass"],
+  iot_sitewise: ["integration", "AWS IoT SiteWise"],
+  iot_twinmaker: ["integration", "AWS IoT TwinMaker"],
+  iot_fleetwise: ["integration", "AWS IoT FleetWise"],
+  amplify: ["compute", "AWS Amplify"],
+  device_farm: ["devtools", "AWS Device Farm"],
+  location: ["integration", "Amazon Location Service"],
+  workspaces: ["compute", "Amazon WorkSpaces"],
+  appstream: ["compute", "Amazon AppStream 2.0"],
+  gamelift: ["compute", "Amazon GameLift"],
+  medialive: ["compute", "AWS Elemental MediaLive"],
+  mediaconvert: ["compute", "AWS Elemental MediaConvert"],
+  mediapackage: ["compute", "AWS Elemental MediaPackage"],
+  mediastore: ["storage", "AWS Elemental MediaStore"],
+  ivs: ["compute", "Amazon IVS"],
+  elastic_transcoder: ["compute", "Amazon Elastic Transcoder"],
+  iam: ["security", "AWS IAM"],
+  identity_center: ["security", "AWS IAM Identity Center"],
+  verified_permissions: ["security", "Amazon Verified Permissions"],
+  cognito: ["security", "Amazon Cognito"],
+  directory_service: ["security", "AWS Directory Service"],
+  kms: ["security", "AWS KMS"],
+  cloudhsm: ["security", "AWS CloudHSM"],
+  secretsmanager: ["security", "AWS Secrets Manager"],
+  acm: ["security", "AWS Certificate Manager"],
+  private_ca: ["security", "AWS Private CA"],
+  signer: ["security", "AWS Signer"],
+  waf: ["security", "AWS WAF"],
+  shield: ["security", "AWS Shield"],
+  firewall_manager: ["security", "AWS Firewall Manager"],
+  network_firewall: ["security", "AWS Network Firewall"],
+  guardduty: ["security", "Amazon GuardDuty"],
+  inspector: ["security", "Amazon Inspector"],
+  macie: ["security", "Amazon Macie"],
+  security_hub: ["security", "AWS Security Hub"],
+  security_lake: ["security", "Amazon Security Lake"],
+  detective: ["security", "Amazon Detective"],
+  audit_manager: ["security", "AWS Audit Manager"],
+  ram: ["security", "AWS Resource Access Manager"],
+  cloudwatch: ["management", "Amazon CloudWatch"],
+  cloudtrail: ["management", "AWS CloudTrail"],
+  config: ["management", "AWS Config"],
+  cloudformation: ["management", "AWS CloudFormation"],
+  systems_manager: ["management", "AWS Systems Manager"],
+  organizations: ["management", "AWS Organizations"],
+  control_tower: ["management", "AWS Control Tower"],
+  service_catalog: ["management", "AWS Service Catalog"],
+  appconfig: ["management", "AWS AppConfig"],
+  license_manager: ["management", "AWS License Manager"],
+  resilience_hub: ["management", "AWS Resilience Hub"],
+  resource_explorer: ["management", "AWS Resource Explorer"],
+  fis: ["management", "AWS Fault Injection Service"],
+  chatbot: ["management", "AWS Chatbot"],
+  proton: ["management", "AWS Proton"],
+  grafana: ["management", "Amazon Managed Grafana"],
+  prometheus: ["management", "Amazon Managed Service for Prometheus"],
+  opsworks: ["management", "AWS OpsWorks"],
+  budgets: ["management", "AWS Budgets"],
+  cost_explorer: ["management", "AWS Cost Explorer"],
+  cost_usage_report: ["management", "AWS Cost and Usage Report"],
+  codebuild: ["devtools", "AWS CodeBuild"],
+  codecommit: ["devtools", "AWS CodeCommit"],
+  codedeploy: ["devtools", "AWS CodeDeploy"],
+  codepipeline: ["devtools", "AWS CodePipeline"],
+  codeartifact: ["devtools", "AWS CodeArtifact"],
+  codecatalyst: ["devtools", "Amazon CodeCatalyst"],
+  codeguru: ["devtools", "Amazon CodeGuru"],
+  xray: ["devtools", "AWS X-Ray"],
+  cloud9: ["devtools", "AWS Cloud9"],
+  sagemaker: ["ai", "Amazon SageMaker"],
+  comprehend: ["ai", "Amazon Comprehend"],
+  kendra: ["ai", "Amazon Kendra"],
+  lex: ["ai", "Amazon Lex"],
+  rekognition: ["ai", "Amazon Rekognition"],
+  transcribe: ["ai", "Amazon Transcribe"],
+  devops_guru: ["ai", "Amazon DevOps Guru"]
+};
+
 export const ICONS = {
-  ec2: {
-    category: "compute",
-    name: "Amazon EC2",
-    svg: OFFICIAL_ICONS.ec2
-  },
-  lambda: {
-    category: "compute",
-    name: "AWS Lambda",
-    svg: OFFICIAL_ICONS.lambda
-  },
-  ecs: {
-    category: "containers",
-    name: "Amazon ECS",
-    svg: OFFICIAL_ICONS.ecs
-  },
-  eks: {
-    category: "containers",
-    name: "Amazon EKS",
-    svg: OFFICIAL_ICONS.eks
-  },
-  autoscaling: {
-    category: "compute",
-    name: "Auto Scaling",
-    svg: OFFICIAL_ICONS.autoscaling
-  },
-  vpc: {
-    category: "networking",
-    name: "Amazon VPC",
-    svg: OFFICIAL_ICONS.vpc
-  },
-  subnet: {
-    category: "networking",
-    name: "VPC Subnet",
-    svg: OFFICIAL_ICONS.subnet
-  },
-  alb: {
-    category: "networking",
-    name: "Elastic Load Balancing",
-    svg: OFFICIAL_ICONS.alb
-  },
-  cloudfront: {
-    category: "networking",
-    name: "Amazon CloudFront",
-    svg: OFFICIAL_ICONS.cloudfront
-  },
-  route53: {
-    category: "networking",
-    name: "Amazon Route 53",
-    svg: OFFICIAL_ICONS.route53
-  },
-  apigateway: {
-    category: "networking",
-    name: "Amazon API Gateway",
-    svg: OFFICIAL_ICONS.apigateway
-  },
-  nat_gateway: {
-    category: "networking",
-    name: "NAT Gateway",
-    svg: OFFICIAL_ICONS.nat_gateway
-  },
-  internet_gateway: {
-    category: "networking",
-    name: "Internet Gateway",
-    svg: OFFICIAL_ICONS.internet_gateway
-  },
-  s3: {
-    category: "storage",
-    name: "Amazon S3",
-    svg: OFFICIAL_ICONS.s3
-  },
-  efs: {
-    category: "storage",
-    name: "Amazon EFS",
-    svg: OFFICIAL_ICONS.efs
-  },
-  rds: {
-    category: "database",
-    name: "Amazon RDS",
-    svg: OFFICIAL_ICONS.rds
-  },
-  dynamodb: {
-    category: "database",
-    name: "Amazon DynamoDB",
-    svg: OFFICIAL_ICONS.dynamodb
-  },
-  elasticache: {
-    category: "database",
-    name: "Amazon ElastiCache",
-    svg: OFFICIAL_ICONS.elasticache
-  },
-  iam: {
-    category: "security",
-    name: "AWS IAM",
-    svg: OFFICIAL_ICONS.iam
-  },
-  kms: {
-    category: "security",
-    name: "AWS KMS",
-    svg: OFFICIAL_ICONS.kms
-  },
-  secretsmanager: {
-    category: "security",
-    name: "AWS Secrets Manager",
-    svg: OFFICIAL_ICONS.secretsmanager
-  },
-  cognito: {
-    category: "security",
-    name: "Amazon Cognito",
-    svg: OFFICIAL_ICONS.cognito
-  },
-  cloudwatch: {
-    category: "management",
-    name: "Amazon CloudWatch",
-    svg: OFFICIAL_ICONS.cloudwatch
-  },
-  sqs: {
-    category: "integration",
-    name: "Amazon SQS",
-    svg: OFFICIAL_ICONS.sqs
-  },
-  sns: {
-    category: "integration",
-    name: "Amazon SNS",
-    svg: OFFICIAL_ICONS.sns
-  },
-  eventbridge: {
-    category: "integration",
-    name: "Amazon EventBridge",
-    svg: OFFICIAL_ICONS.eventbridge
-  },
+  ...Object.fromEntries(Object.entries(ICON_DEFS).map(([key, [category, name]]) =>
+    [key, { category, name, svg: OFFICIAL_ICONS[key] }])),
+  // The AWS set has no generic service icon, so unmapped types get a neutral glyph.
   generic: {
     category: "general",
     name: "AWS Resource",
