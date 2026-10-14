@@ -43,6 +43,19 @@ async function mountApp() {
 const mouse = (window, type, opts = {}) =>
   new window.MouseEvent(type, { bubbles: true, cancelable: true, ...opts });
 
+/**
+ * Polls until `condition()` holds instead of sleeping a fixed time, so async
+ * jsdom work (FileReader) cannot race a slow CI runner. Fails after `timeout`.
+ */
+async function waitFor(condition, timeout = 2000) {
+  const deadline = Date.now() + timeout;
+  while (!condition()) {
+    if (Date.now() > deadline) return false;
+    await new Promise(r => setTimeout(r, 5));
+  }
+  return true;
+}
+
 test('canvas: pan, zoom clamping, fit, reset and filters', async () => {
   const { app, window, document } = await mountApp();
   const canvas = app.diagramCanvas;
@@ -259,7 +272,7 @@ test('import modal: open, paste, validate, drag-drop and file read', async () =>
   const drop = mouse(window, 'drop');
   Object.defineProperty(drop, 'dataTransfer', { value: { files: [file] } });
   dropzone.dispatchEvent(drop);
-  await new Promise(r => setTimeout(r, 20)); // FileReader is async
+  await waitFor(() => textarea.value !== ''); // FileReader is async
   assert.equal(textarea.value, '{"resource_changes": []}', 'dropped file fills the textarea');
 
   // Cancel and close buttons.
