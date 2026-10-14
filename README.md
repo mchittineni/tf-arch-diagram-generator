@@ -19,7 +19,7 @@ npx tf-arch-diagram-generator render plan.json -o arch.svg # standalone SVG, no 
 
 ## Features
 
-- **Three clouds, one tool** — AWS (`aws_*`), Google Cloud (`google_*`) and Azure (`azurerm_*` / `azuread_*`), with 280+ resource types mapped across 104 service icons — the **official vendor architecture icons**, embedded verbatim from the AWS / Google Cloud / Azure icon sets. A multi-provider plan renders as one band per cloud.
+- **Three clouds, one tool** — AWS (`aws_*`), Google Cloud (`google_*`) and Azure (`azurerm_*` / `azuread_*`), with 460+ service icons (173 AWS, 105 Google Cloud, 184 Azure) — the **official vendor architecture icons**, embedded verbatim from the AWS / Google Cloud / Azure icon sets. Resource types resolve by service prefix (`aws_glue_*` → AWS Glue, `azurerm_kusto_*` → Azure Data Explorer), so a whole service is covered, not just a hand-picked list of its types. A multi-provider plan renders as one band per cloud.
 - **Real containment hierarchy** — VPC / VPC Network / Virtual Network, availability zones and regions, public vs. private subnets. Nested references resolve too (`network_interface[0].subnetwork`, `ip_configuration[0].subnet_id`, `default_node_pool[0].vnet_subnet_id`).
 - **Deep reference & architectural links** — Extracts direct configuration expressions and attribute values (`kms_key_arn`, `security_groups`, `target_group_arns`, `iam_roles`, `route_table_id`, `vpc_peering_connection_id`, `private_endpoints`) alongside high-level traffic routing (Route 53 → CloudFront → ALB → ECS/EC2 → RDS, Cloud Armor → Backend Services → Cloud Run → Cloud SQL, Front Door → App Gateway → AKS → Key Vault).
 - **Perimeter-snapped connectors & relationship styling** — Connectors snap directly to outer card perimeters with clearance offsets so arrowheads never bury under cards. Styles distinguish traffic flows (solid blue/purple), security/encryption (dashed amber with security markers), VPC/VNet peering, and resource dependencies.
@@ -204,7 +204,7 @@ Exported SVGs keep a slice of that interactivity: opened in a browser they carry
 | Security / Identity | IAM, KMS, Secrets Manager, WAF, ACM | IAM, KMS CMEK, Cloud Armor, Secret Manager | Key Vault, NSG rules, Entra ID |
 | Edge & Networking | Route 53, CloudFront, ALB, API Gateway, TGW, Peering, Route Tables | Global LB, Cloud CDN, API Gateway, Cloud DNS, Serverless VPC, Peering | Front Door, App Gateway, LB, APIM, Azure DNS, Private Endpoints, VNet Peering |
 
-Unmapped resource types still render, with that cloud's generic icon — nothing is silently dropped. Missing a service you use? [Open a mapping issue](.github/ISSUE_TEMPLATE/resource_mapping.yml) or send a one-line PR.
+Resource types from a service with no matching prefix still render, with that cloud's generic icon — nothing is silently dropped. Missing a service you use? [Open a mapping issue](.github/ISSUE_TEMPLATE/resource_mapping.yml) or send a one-line PR.
 
 ## How it works
 

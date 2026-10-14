@@ -63,24 +63,28 @@ The important boundary: **`svgRenderer.js` and everything it imports must never 
 
 ## Adding a resource type
 
-Most contributions are one line. Open the provider's `index.js` and add an entry to `RESOURCE_MAP`:
+Icons resolve in three steps, in each provider's `index.js`:
+
+1. `RESOURCE_MAP` — exact type → icon key overrides.
+2. `SERVICE_PREFIXES` — service tokens. A token matches the type of the same name and every type that extends it with `_…`; the longest matching token wins (`aws_rds_cluster_instance` resolves through `aws_rds_cluster` before `aws_rds`).
+3. The provider's `generic` icon.
+
+So a new service is usually one line in `SERVICE_PREFIXES`, and every current and future resource type of that service is covered:
 
 ```js
 // src/providers/gcp/index.js
-google_workflows_workflow: 'eventarc',
+google_workflows: 'workflows',
 ```
 
-If no existing icon fits, add one to that provider's `icons.js`:
+Use `RESOURCE_MAP` only when a type's own name points at the wrong service token.
 
-```js
-workflows: {
-  category: 'integration',           // must be a key in CATEGORIES
-  name: 'Workflows',                 // shown on the node and in the inspector
-  svg: `<svg viewBox="0 0 64 64" ...>...</svg>`
-}
-```
+If no existing icon fits, add one — the artwork always comes from the official vendor set in `assets/icons/`, never hand-drawn:
 
-Icon guidelines: `viewBox="0 0 64 64"`, a filled rounded-rect background in the service's category color, white strokes/fills for the glyph, no external references, no `id` attributes (icons are inlined many times per diagram).
+1. Add the key and its vendor file to [`scripts/icons/mapping.json`](scripts/icons/mapping.json), e.g. `"workflows": "workflows.svg"`.
+2. Add the key to `ICON_DEFS` in that provider's `icons.js`: `workflows: ["integration", "Workflows"]` (category must be a key in `CATEGORIES`).
+3. Run `npm run icons:build` to re-embed the SVG into `officialIcons.js`.
+
+`test/icons.test.js` fails if a key has no official SVG, if `mapping.json` and `icons.js` disagree, if a map entry points at an unknown icon, or if an icon is unreachable from every resource type.
 
 ## Adding relationship inference
 
@@ -99,7 +103,7 @@ Keep labels short (they render inside a small pill) and prefer protocol/port hin
 ## Adding a whole cloud provider
 
 1. Create `src/providers/<id>/icons.js` exporting `CATEGORIES` and `ICONS`.
-2. Create `src/providers/<id>/index.js` exporting a provider object with: `id`, `name`, `shortName`, `accentColor`, `typePrefixes`, `categories`, `icons`, `resourceMap`, `genericIconKey`, `terms`, `hierarchy`, `inferEdges()`, `isEntryResource()`.
+2. Create `src/providers/<id>/index.js` exporting a provider object with: `id`, `name`, `shortName`, `accentColor`, `typePrefixes`, `categories`, `icons`, `resourceMap`, `servicePrefixes`, `genericIconKey`, `terms`, `hierarchy`, `inferEdges()`, `isEntryResource()`.
 3. Register it in `src/providers/index.js`.
 4. Add a sample plan under `src/data/samples/` and export it from `samplePlans.js`.
 5. Add hierarchy assertions to `test/parser.test.js`.
