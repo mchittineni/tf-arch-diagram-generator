@@ -17,193 +17,119 @@ export const CATEGORIES = {
   management: { name: "Operations", color: "#A142F4", bgColor: "rgba(161, 66, 244, 0.15)" },
   integration: { name: "Application Integration", color: "#F538A0", bgColor: "rgba(245, 56, 160, 0.15)" },
   analytics: { name: "Data Analytics", color: "#00ACC1", bgColor: "rgba(0, 172, 193, 0.15)" },
+  ai: { name: "AI & Machine Learning", color: "#9334E6", bgColor: "rgba(147, 52, 230, 0.15)" },
+  devtools: { name: "Developer Tools", color: "#E8710A", bgColor: "rgba(232, 113, 10, 0.15)" },
   general: { name: "General", color: "#5F6368", bgColor: "rgba(95, 99, 104, 0.15)" }
 };
 
-export const ICONS = {
-  compute_engine: {
-    category: "compute",
-    name: "Compute Engine",
-    svg: OFFICIAL_ICONS.compute_engine
-  },
-  instance_group: {
-    category: "compute",
-    name: "Managed Instance Group",
-    svg: OFFICIAL_ICONS.instance_group
-  },
-  cloud_functions: {
-    category: "compute",
-    name: "Cloud Functions",
-    svg: OFFICIAL_ICONS.cloud_functions
-  },
-  cloud_run: {
-    category: "compute",
-    name: "Cloud Run",
-    svg: OFFICIAL_ICONS.cloud_run
-  },
-  app_engine: {
-    category: "compute",
-    name: "App Engine",
-    svg: OFFICIAL_ICONS.app_engine
-  },
-  gke: {
-    category: "containers",
-    name: "Google Kubernetes Engine",
-    svg: OFFICIAL_ICONS.gke
-  },
-  artifact_registry: {
-    category: "containers",
-    name: "Artifact Registry",
-    svg: OFFICIAL_ICONS.artifact_registry
-  },
-  vpc_network: {
-    category: "networking",
-    name: "VPC Network",
-    svg: OFFICIAL_ICONS.vpc_network
-  },
-  subnetwork: {
-    category: "networking",
-    name: "VPC Subnetwork",
-    svg: OFFICIAL_ICONS.subnetwork
-  },
-  load_balancer: {
-    category: "networking",
-    name: "Cloud Load Balancing",
-    svg: OFFICIAL_ICONS.load_balancer
-  },
-  cloud_cdn: {
-    category: "networking",
-    name: "Cloud CDN",
-    svg: OFFICIAL_ICONS.cloud_cdn
-  },
-  cloud_dns: {
-    category: "networking",
-    name: "Cloud DNS",
-    svg: OFFICIAL_ICONS.cloud_dns
-  },
-  cloud_nat: {
-    category: "networking",
-    name: "Cloud NAT",
-    svg: OFFICIAL_ICONS.cloud_nat
-  },
-  cloud_router: {
-    category: "networking",
-    name: "Cloud Router",
-    svg: OFFICIAL_ICONS.cloud_router
-  },
-  api_gateway: {
-    category: "networking",
-    name: "API Gateway",
-    svg: OFFICIAL_ICONS.api_gateway
-  },
-  firewall: {
-    category: "networking",
-    name: "VPC Firewall Rule",
-    svg: OFFICIAL_ICONS.firewall
-  },
-  cloud_storage: {
-    category: "storage",
-    name: "Cloud Storage",
-    svg: OFFICIAL_ICONS.cloud_storage
-  },
-  filestore: {
-    category: "storage",
-    name: "Filestore",
-    svg: OFFICIAL_ICONS.filestore
-  },
-  persistent_disk: {
-    category: "storage",
-    name: "Persistent Disk",
-    svg: OFFICIAL_ICONS.persistent_disk
-  },
-  cloud_sql: {
-    category: "database",
-    name: "Cloud SQL",
-    svg: OFFICIAL_ICONS.cloud_sql
-  },
-  spanner: {
-    category: "database",
-    name: "Cloud Spanner",
-    svg: OFFICIAL_ICONS.spanner
-  },
-  firestore: {
-    category: "database",
-    name: "Firestore",
-    svg: OFFICIAL_ICONS.firestore
-  },
-  bigtable: {
-    category: "database",
-    name: "Cloud Bigtable",
-    svg: OFFICIAL_ICONS.bigtable
-  },
-  memorystore: {
-    category: "database",
-    name: "Memorystore",
-    svg: OFFICIAL_ICONS.memorystore
-  },
-  bigquery: {
-    category: "analytics",
-    name: "BigQuery",
-    svg: OFFICIAL_ICONS.bigquery
-  },
-  dataflow: {
-    category: "analytics",
-    name: "Dataflow",
-    svg: OFFICIAL_ICONS.dataflow
-  },
-  pubsub: {
-    category: "integration",
-    name: "Pub/Sub",
-    svg: OFFICIAL_ICONS.pubsub
-  },
-  cloud_tasks: {
-    category: "integration",
-    name: "Cloud Tasks",
-    svg: OFFICIAL_ICONS.cloud_tasks
-  },
-  eventarc: {
-    category: "integration",
-    name: "Eventarc",
-    svg: OFFICIAL_ICONS.eventarc
-  },
-  iam: {
-    category: "security",
-    name: "Cloud IAM",
-    svg: OFFICIAL_ICONS.iam
-  },
-  service_account: {
-    category: "security",
-    name: "Service Account",
-    svg: OFFICIAL_ICONS.service_account
-  },
-  kms: {
-    category: "security",
-    name: "Cloud KMS",
-    svg: OFFICIAL_ICONS.kms
-  },
-  secret_manager: {
-    category: "security",
-    name: "Secret Manager",
-    svg: OFFICIAL_ICONS.secret_manager
-  },
-  monitoring: {
-    category: "management",
-    name: "Cloud Monitoring",
-    svg: OFFICIAL_ICONS.monitoring
-  },
-  logging: {
-    category: "management",
-    name: "Cloud Logging",
-    svg: OFFICIAL_ICONS.logging
-  },
-  project: {
-    category: "general",
-    name: "Google Cloud Project",
-    svg: OFFICIAL_ICONS.project
-  },
-  generic: {
-    category: "general",
-    name: "Google Cloud Resource",
-    svg: OFFICIAL_ICONS.generic
-  }
+/** Icon key → [category, display name]; the artwork comes from officialIcons.js. */
+const ICON_DEFS = {
+  compute_engine: ["compute", "Compute Engine"],
+  instance_group: ["compute", "Managed Instance Group"],
+  persistent_disk: ["storage", "Persistent Disk"],
+  cloud_tpu: ["compute", "Cloud TPU"],
+  cloud_functions: ["compute", "Cloud Functions"],
+  cloud_run: ["compute", "Cloud Run"],
+  app_engine: ["compute", "App Engine"],
+  vmware_engine: ["compute", "Google Cloud VMware Engine"],
+  gke: ["containers", "Google Kubernetes Engine"],
+  gke_on_prem: ["containers", "GKE On-Prem"],
+  anthos: ["containers", "Anthos"],
+  artifact_registry: ["containers", "Artifact Registry"],
+  container_registry: ["containers", "Container Registry"],
+  binary_authorization: ["security", "Binary Authorization"],
+  vpc_network: ["networking", "VPC Network"],
+  subnetwork: ["networking", "Subnetwork"],
+  external_ip: ["networking", "External IP Addresses"],
+  firewall: ["security", "Firewall Rules"],
+  cloud_router: ["networking", "Cloud Router"],
+  cloud_routes: ["networking", "Routes"],
+  cloud_nat: ["networking", "Cloud NAT"],
+  cloud_vpn: ["networking", "Cloud VPN"],
+  interconnect: ["networking", "Cloud Interconnect"],
+  private_service_connect: ["networking", "Private Service Connect"],
+  private_connectivity: ["networking", "Private Service Access"],
+  network_connectivity_center: ["networking", "Network Connectivity Center"],
+  network_intelligence: ["networking", "Network Intelligence Center"],
+  load_balancer: ["networking", "Cloud Load Balancing"],
+  cloud_cdn: ["networking", "Cloud CDN"],
+  cloud_dns: ["networking", "Cloud DNS"],
+  cloud_domains: ["networking", "Cloud Domains"],
+  traffic_director: ["networking", "Traffic Director"],
+  api_gateway: ["networking", "API Gateway"],
+  cloud_endpoints: ["networking", "Cloud Endpoints"],
+  apigee: ["networking", "Apigee API Platform"],
+  cloud_storage: ["storage", "Cloud Storage"],
+  storage_transfer: ["storage", "Storage Transfer Service"],
+  filestore: ["storage", "Filestore"],
+  backup_dr: ["storage", "Backup and DR"],
+  cloud_sql: ["database", "Cloud SQL"],
+  spanner: ["database", "Cloud Spanner"],
+  firestore: ["database", "Firestore"],
+  datastore: ["database", "Datastore"],
+  bigtable: ["database", "Bigtable"],
+  memorystore: ["database", "Memorystore"],
+  database_migration: ["database", "Database Migration Service"],
+  bigquery: ["analytics", "BigQuery"],
+  bigquery_transfer: ["analytics", "BigQuery Data Transfer"],
+  analytics_hub: ["analytics", "Analytics Hub"],
+  dataflow: ["analytics", "Dataflow"],
+  dataproc: ["analytics", "Dataproc"],
+  dataproc_metastore: ["analytics", "Dataproc Metastore"],
+  composer: ["analytics", "Cloud Composer"],
+  data_fusion: ["analytics", "Cloud Data Fusion"],
+  datastream: ["analytics", "Datastream"],
+  dataplex: ["analytics", "Dataplex"],
+  data_catalog: ["analytics", "Data Catalog"],
+  looker: ["analytics", "Looker"],
+  pubsub: ["integration", "Pub/Sub"],
+  cloud_tasks: ["integration", "Cloud Tasks"],
+  cloud_scheduler: ["integration", "Cloud Scheduler"],
+  workflows: ["integration", "Workflows"],
+  eventarc: ["integration", "Eventarc"],
+  healthcare_api: ["integration", "Cloud Healthcare API"],
+  connectors: ["integration", "Integration Connectors"],
+  iam: ["security", "Identity and Access Management"],
+  service_account: ["security", "Service Account"],
+  workload_identity: ["security", "Workload Identity Federation"],
+  identity_platform: ["security", "Identity Platform"],
+  iap: ["security", "Identity-Aware Proxy"],
+  access_context_manager: ["security", "Access Context Manager"],
+  kms: ["security", "Cloud KMS"],
+  cloud_ekm: ["security", "Cloud EKM"],
+  secret_manager: ["security", "Secret Manager"],
+  certificate_manager: ["security", "Certificate Manager"],
+  certificate_authority: ["security", "Certificate Authority Service"],
+  cloud_armor: ["security", "Cloud Armor"],
+  cloud_ids: ["security", "Cloud IDS"],
+  network_security: ["security", "Network Security"],
+  security_command_center: ["security", "Security Command Center"],
+  dlp: ["security", "Sensitive Data Protection"],
+  assured_workloads: ["security", "Assured Workloads"],
+  beyondcorp: ["security", "BeyondCorp Enterprise"],
+  managed_ad: ["security", "Managed Microsoft AD"],
+  monitoring: ["management", "Cloud Monitoring"],
+  logging: ["management", "Cloud Logging"],
+  cloud_audit_logs: ["management", "Cloud Audit Logs"],
+  asset_inventory: ["management", "Cloud Asset Inventory"],
+  os_config: ["management", "OS Config"],
+  deployment_manager: ["management", "Cloud Deployment Manager"],
+  runtime_config: ["management", "Runtime Configurator"],
+  billing: ["management", "Cloud Billing"],
+  quotas: ["management", "Cloud Quotas"],
+  project: ["general", "Project"],
+  cloud_build: ["devtools", "Cloud Build"],
+  cloud_deploy: ["devtools", "Cloud Deploy"],
+  source_repositories: ["devtools", "Cloud Source Repositories"],
+  vertex_ai: ["ai", "Vertex AI"],
+  ai_platform: ["ai", "AI Platform"],
+  dialogflow: ["ai", "Dialogflow"],
+  dialogflow_cx: ["ai", "Dialogflow CX"],
+  document_ai: ["ai", "Document AI"],
+  speech_to_text: ["ai", "Speech-to-Text"],
+  contact_center_ai: ["ai", "Contact Center AI"],
+  generic: ["general", "Google Cloud Resource"]
 };
+
+export const ICONS = Object.fromEntries(Object.entries(ICON_DEFS).map(([key, [category, name]]) =>
+  [key, { category, name, svg: OFFICIAL_ICONS[key] }]));
