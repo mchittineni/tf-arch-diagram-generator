@@ -5,6 +5,12 @@ updates:
     schedule:
       interval: monthly
     open-pull-requests-limit: 5
+    ignore:
+      # Majors need a newer conventional-changelog-writer than
+      # @semantic-release/release-notes-generator bundles ("Missing helper"
+      # crash at release time). Lift once the notes generator moves to writer@9.
+      - dependency-name: conventional-changelog-conventionalcommits
+        update-types: ["version-update:semver-major"]
     groups:
       npm:
         patterns:
