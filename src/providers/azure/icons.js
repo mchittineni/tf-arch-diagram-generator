@@ -17,208 +17,198 @@ export const CATEGORIES = {
   management: { name: "Monitor & Management", color: "#8661C5", bgColor: "rgba(134, 97, 197, 0.15)" },
   integration: { name: "Integration", color: "#C239B3", bgColor: "rgba(194, 57, 179, 0.15)" },
   analytics: { name: "Analytics", color: "#00B294", bgColor: "rgba(0, 178, 148, 0.15)" },
+  ai: { name: "AI & Machine Learning", color: "#50E6FF", bgColor: "rgba(80, 230, 255, 0.15)" },
+  devtools: { name: "DevOps", color: "#5C2D91", bgColor: "rgba(92, 45, 145, 0.15)" },
   general: { name: "General", color: "#5C6670", bgColor: "rgba(92, 102, 112, 0.15)" }
 };
 
-export const ICONS = {
-  virtual_machine: {
-    category: "compute",
-    name: "Virtual Machine",
-    svg: OFFICIAL_ICONS.virtual_machine
-  },
-  vm_scale_set: {
-    category: "compute",
-    name: "VM Scale Set",
-    svg: OFFICIAL_ICONS.vm_scale_set
-  },
-  functions: {
-    category: "compute",
-    name: "Azure Functions",
-    svg: OFFICIAL_ICONS.functions
-  },
-  app_service: {
-    category: "compute",
-    name: "App Service",
-    svg: OFFICIAL_ICONS.app_service
-  },
-  app_service_plan: {
-    category: "compute",
-    name: "App Service Plan",
-    svg: OFFICIAL_ICONS.app_service_plan
-  },
-  aks: {
-    category: "containers",
-    name: "Azure Kubernetes Service",
-    svg: OFFICIAL_ICONS.aks
-  },
-  container_app: {
-    category: "containers",
-    name: "Container Apps",
-    svg: OFFICIAL_ICONS.container_app
-  },
-  container_registry: {
-    category: "containers",
-    name: "Container Registry",
-    svg: OFFICIAL_ICONS.container_registry
-  },
-  virtual_network: {
-    category: "networking",
-    name: "Virtual Network",
-    svg: OFFICIAL_ICONS.virtual_network
-  },
-  subnet: {
-    category: "networking",
-    name: "Subnet",
-    svg: OFFICIAL_ICONS.subnet
-  },
-  load_balancer: {
-    category: "networking",
-    name: "Load Balancer",
-    svg: OFFICIAL_ICONS.load_balancer
-  },
-  application_gateway: {
-    category: "networking",
-    name: "Application Gateway",
-    svg: OFFICIAL_ICONS.application_gateway
-  },
-  front_door: {
-    category: "networking",
-    name: "Front Door / CDN",
-    svg: OFFICIAL_ICONS.front_door
-  },
-  dns: {
-    category: "networking",
-    name: "Azure DNS",
-    svg: OFFICIAL_ICONS.dns
-  },
-  nat_gateway: {
-    category: "networking",
-    name: "NAT Gateway",
-    svg: OFFICIAL_ICONS.nat_gateway
-  },
-  network_interface: {
-    category: "networking",
-    name: "Network Interface",
-    svg: OFFICIAL_ICONS.network_interface
-  },
-  nsg: {
-    category: "networking",
-    name: "Network Security Group",
-    svg: OFFICIAL_ICONS.nsg
-  },
-  api_management: {
-    category: "networking",
-    name: "API Management",
-    svg: OFFICIAL_ICONS.api_management
-  },
-  public_ip: {
-    category: "networking",
-    name: "Public IP Address",
-    svg: OFFICIAL_ICONS.public_ip
-  },
-  storage_account: {
-    category: "storage",
-    name: "Storage Account",
-    svg: OFFICIAL_ICONS.storage_account
-  },
-  blob_container: {
-    category: "storage",
-    name: "Blob Container",
-    svg: OFFICIAL_ICONS.blob_container
-  },
-  managed_disk: {
-    category: "storage",
-    name: "Managed Disk",
-    svg: OFFICIAL_ICONS.managed_disk
-  },
-  file_share: {
-    category: "storage",
-    name: "Azure Files",
-    svg: OFFICIAL_ICONS.file_share
-  },
-  sql_database: {
-    category: "database",
-    name: "Azure SQL Database",
-    svg: OFFICIAL_ICONS.sql_database
-  },
-  cosmos_db: {
-    category: "database",
-    name: "Azure Cosmos DB",
-    svg: OFFICIAL_ICONS.cosmos_db
-  },
-  postgresql: {
-    category: "database",
-    name: "Azure Database for PostgreSQL",
-    svg: OFFICIAL_ICONS.postgresql
-  },
-  redis_cache: {
-    category: "database",
-    name: "Azure Cache for Redis",
-    svg: OFFICIAL_ICONS.redis_cache
-  },
-  synapse: {
-    category: "analytics",
-    name: "Azure Synapse Analytics",
-    svg: OFFICIAL_ICONS.synapse
-  },
-  data_factory: {
-    category: "analytics",
-    name: "Data Factory",
-    svg: OFFICIAL_ICONS.data_factory
-  },
-  service_bus: {
-    category: "integration",
-    name: "Service Bus",
-    svg: OFFICIAL_ICONS.service_bus
-  },
-  event_grid: {
-    category: "integration",
-    name: "Event Grid",
-    svg: OFFICIAL_ICONS.event_grid
-  },
-  event_hub: {
-    category: "integration",
-    name: "Event Hubs",
-    svg: OFFICIAL_ICONS.event_hub
-  },
-  logic_app: {
-    category: "integration",
-    name: "Logic Apps",
-    svg: OFFICIAL_ICONS.logic_app
-  },
-  key_vault: {
-    category: "security",
-    name: "Key Vault",
-    svg: OFFICIAL_ICONS.key_vault
-  },
-  managed_identity: {
-    category: "security",
-    name: "Managed Identity",
-    svg: OFFICIAL_ICONS.managed_identity
-  },
-  role_assignment: {
-    category: "security",
-    name: "Role Assignment",
-    svg: OFFICIAL_ICONS.role_assignment
-  },
-  monitor: {
-    category: "management",
-    name: "Azure Monitor",
-    svg: OFFICIAL_ICONS.monitor
-  },
-  log_analytics: {
-    category: "management",
-    name: "Log Analytics Workspace",
-    svg: OFFICIAL_ICONS.log_analytics
-  },
-  resource_group: {
-    category: "general",
-    name: "Resource Group",
-    svg: OFFICIAL_ICONS.resource_group
-  },
-  generic: {
-    category: "general",
-    name: "Azure Resource",
-    svg: OFFICIAL_ICONS.generic
-  }
+/** Icon key → [category, display name]; the artwork comes from officialIcons.js. */
+const ICON_DEFS = {
+  virtual_machine: ["compute", "Virtual Machine"],
+  vm_scale_set: ["compute", "VM Scale Set"],
+  availability_set: ["compute", "Availability Set"],
+  proximity_placement_group: ["compute", "Proximity Placement Group"],
+  dedicated_host: ["compute", "Dedicated Host"],
+  host_group: ["compute", "Dedicated Host Group"],
+  capacity_reservation: ["compute", "Capacity Reservation Group"],
+  managed_disk: ["storage", "Managed Disk"],
+  disk_snapshot: ["storage", "Disk Snapshot"],
+  disk_encryption_set: ["security", "Disk Encryption Set"],
+  image: ["compute", "Image"],
+  compute_gallery: ["compute", "Azure Compute Gallery"],
+  ssh_key: ["security", "SSH Key"],
+  maintenance_configuration: ["management", "Maintenance Configuration"],
+  batch: ["compute", "Batch Account"],
+  functions: ["compute", "Function App"],
+  app_service: ["compute", "App Service"],
+  web_app_slot: ["compute", "Deployment Slot"],
+  app_service_plan: ["compute", "App Service Plan"],
+  app_service_environment: ["compute", "App Service Environment"],
+  app_service_certificate: ["security", "App Service Certificate"],
+  static_web_app: ["compute", "Static Web App"],
+  spring_apps: ["compute", "Azure Spring Apps"],
+  service_fabric: ["compute", "Service Fabric Cluster"],
+  managed_service_fabric: ["compute", "Managed Service Fabric"],
+  virtual_desktop: ["compute", "Azure Virtual Desktop"],
+  host_pool: ["compute", "Host Pool"],
+  avd_workspace: ["compute", "AVD Workspace"],
+  avd_application_group: ["compute", "AVD Application Group"],
+  vmware_solution: ["compute", "Azure VMware Solution"],
+  dev_box: ["devtools", "Microsoft Dev Box"],
+  aks: ["containers", "AKS Cluster"],
+  kubernetes_fleet: ["containers", "Kubernetes Fleet Manager"],
+  arc_kubernetes: ["containers", "Azure Arc Kubernetes"],
+  container_app: ["containers", "Container App"],
+  container_app_environment: ["containers", "Container Apps Environment"],
+  container_instances: ["containers", "Container Instances"],
+  container_registry: ["containers", "Container Registry"],
+  openshift: ["containers", "Azure Red Hat OpenShift"],
+  virtual_network: ["networking", "Virtual Network"],
+  subnet: ["networking", "Subnet"],
+  network_interface: ["networking", "Network Interface"],
+  nsg: ["security", "Network Security Group"],
+  asg: ["security", "Application Security Group"],
+  route_table: ["networking", "Route Table"],
+  route_filter: ["networking", "Route Filter"],
+  public_ip: ["networking", "Public IP Address"],
+  public_ip_prefix: ["networking", "Public IP Prefix"],
+  ip_group: ["networking", "IP Group"],
+  nat_gateway: ["networking", "NAT Gateway"],
+  load_balancer: ["networking", "Load Balancer"],
+  application_gateway: ["networking", "Application Gateway"],
+  front_door: ["networking", "Front Door & CDN"],
+  traffic_manager: ["networking", "Traffic Manager"],
+  dns: ["networking", "DNS Zone"],
+  dns_resolver: ["networking", "DNS Private Resolver"],
+  private_endpoint: ["networking", "Private Endpoint"],
+  private_link_service: ["networking", "Private Link Service"],
+  virtual_network_gateway: ["networking", "Virtual Network Gateway"],
+  local_network_gateway: ["networking", "Local Network Gateway"],
+  expressroute: ["networking", "ExpressRoute Circuit"],
+  expressroute_direct: ["networking", "ExpressRoute Direct"],
+  connection: ["networking", "Connection"],
+  virtual_wan: ["networking", "Virtual WAN"],
+  virtual_hub: ["networking", "Virtual WAN Hub"],
+  bastion: ["networking", "Bastion"],
+  firewall: ["security", "Azure Firewall"],
+  firewall_policy: ["security", "Firewall Policy"],
+  waf_policy: ["security", "WAF Policy"],
+  ddos_protection: ["security", "DDoS Protection Plan"],
+  network_watcher: ["management", "Network Watcher"],
+  network_manager: ["networking", "Network Manager"],
+  service_endpoint_policy: ["networking", "Service Endpoint Policy"],
+  api_management: ["integration", "API Management"],
+  api_connection: ["integration", "API Connection"],
+  storage_account: ["storage", "Storage Account"],
+  blob_container: ["storage", "Blob Container"],
+  file_share: ["storage", "File Share"],
+  storage_queue: ["storage", "Storage Queue"],
+  storage_table: ["storage", "Storage Table"],
+  data_lake_storage: ["storage", "Data Lake Storage"],
+  storage_sync: ["storage", "Storage Sync Service"],
+  storage_mover: ["storage", "Storage Mover"],
+  elastic_san: ["storage", "Elastic SAN"],
+  netapp_files: ["storage", "Azure NetApp Files"],
+  hpc_cache: ["storage", "HPC Cache"],
+  data_share: ["storage", "Data Share"],
+  recovery_vault: ["storage", "Recovery Services Vault"],
+  backup_vault: ["storage", "Backup Vault"],
+  sql_server: ["database", "SQL Server"],
+  sql_database: ["database", "SQL Database"],
+  sql_elastic_pool: ["database", "SQL Elastic Pool"],
+  sql_managed_instance: ["database", "SQL Managed Instance"],
+  sql_vm: ["database", "SQL Virtual Machine"],
+  elastic_job_agent: ["database", "Elastic Job Agent"],
+  cosmos_db: ["database", "Azure Cosmos DB"],
+  cassandra: ["database", "Managed Instance for Apache Cassandra"],
+  postgresql: ["database", "Azure Database for PostgreSQL"],
+  postgresql_cluster: ["database", "Azure Cosmos DB for PostgreSQL"],
+  mysql: ["database", "Azure Database for MySQL"],
+  mariadb: ["database", "Azure Database for MariaDB"],
+  redis_cache: ["database", "Azure Cache for Redis"],
+  database_migration: ["database", "Database Migration Service"],
+  confidential_ledger: ["database", "Confidential Ledger"],
+  synapse: ["analytics", "Azure Synapse Analytics"],
+  data_factory: ["analytics", "Data Factory"],
+  databricks: ["analytics", "Azure Databricks"],
+  data_explorer: ["analytics", "Azure Data Explorer"],
+  hdinsight: ["analytics", "HDInsight"],
+  stream_analytics: ["analytics", "Stream Analytics"],
+  analysis_services: ["analytics", "Analysis Services"],
+  power_bi_embedded: ["analytics", "Power BI Embedded"],
+  purview: ["analytics", "Microsoft Purview"],
+  event_hub: ["analytics", "Event Hubs"],
+  event_hub_cluster: ["analytics", "Event Hubs Cluster"],
+  service_bus: ["integration", "Service Bus"],
+  event_grid: ["integration", "Event Grid Topic"],
+  event_grid_domain: ["integration", "Event Grid Domain"],
+  event_grid_system_topic: ["integration", "Event Grid System Topic"],
+  event_grid_subscription: ["integration", "Event Grid Subscription"],
+  logic_app: ["integration", "Logic App"],
+  integration_account: ["integration", "Integration Account"],
+  app_configuration: ["integration", "App Configuration"],
+  relay: ["integration", "Relay"],
+  signalr: ["integration", "SignalR"],
+  notification_hub: ["integration", "Notification Hub"],
+  communication_services: ["integration", "Communication Services"],
+  media_services: ["integration", "Media Services"],
+  iot_hub: ["integration", "IoT Hub"],
+  iot_dps: ["integration", "IoT Hub Device Provisioning"],
+  iot_central: ["integration", "IoT Central"],
+  digital_twins: ["integration", "Digital Twins"],
+  maps: ["integration", "Azure Maps"],
+  fhir: ["integration", "Azure API for FHIR"],
+  cognitive_services: ["ai", "Azure AI Services"],
+  machine_learning: ["ai", "Azure Machine Learning"],
+  search: ["ai", "Azure AI Search"],
+  bot_service: ["ai", "Bot Service"],
+  key_vault: ["security", "Key Vault"],
+  dedicated_hsm: ["security", "Dedicated HSM"],
+  managed_identity: ["security", "Managed Identity"],
+  role_assignment: ["security", "Role Assignment"],
+  entra_id: ["security", "Microsoft Entra ID"],
+  app_registration: ["security", "App Registration"],
+  enterprise_app: ["security", "Enterprise Application"],
+  entra_group: ["security", "Entra ID Group"],
+  entra_user: ["security", "Entra ID User"],
+  administrative_unit: ["security", "Administrative Unit"],
+  conditional_access: ["security", "Conditional Access"],
+  aad_b2c: ["security", "Azure AD B2C"],
+  aad_domain_services: ["security", "Entra Domain Services"],
+  sentinel: ["security", "Microsoft Sentinel"],
+  defender: ["security", "Microsoft Defender for Cloud"],
+  attestation: ["security", "Azure Attestation"],
+  monitor: ["management", "Azure Monitor"],
+  alerts: ["management", "Alerts"],
+  diagnostic_setting: ["management", "Diagnostic Setting"],
+  autoscale: ["management", "Autoscale Setting"],
+  data_collection_rule: ["management", "Data Collection Rule"],
+  application_insights: ["management", "Application Insights"],
+  workbook: ["management", "Workbook"],
+  log_analytics: ["management", "Log Analytics Workspace"],
+  log_analytics_query_pack: ["management", "Log Analytics Query Pack"],
+  managed_grafana: ["management", "Azure Managed Grafana"],
+  dashboard: ["management", "Dashboard"],
+  automation: ["management", "Automation Account"],
+  policy: ["management", "Azure Policy"],
+  management_group: ["management", "Management Group"],
+  subscription: ["management", "Subscription"],
+  resource_group: ["general", "Resource Group"],
+  management_lock: ["management", "Management Lock"],
+  template_spec: ["management", "Template Spec"],
+  deployment: ["management", "Template Deployment"],
+  cost_budget: ["management", "Cost Budget"],
+  cost_export: ["management", "Cost Export"],
+  advisor: ["management", "Advisor"],
+  lighthouse: ["management", "Azure Lighthouse"],
+  azure_arc: ["management", "Azure Arc"],
+  arc_machine: ["management", "Arc-enabled Server"],
+  chaos_studio: ["management", "Chaos Studio"],
+  load_testing: ["devtools", "Azure Load Testing"],
+  devtest_labs: ["devtools", "DevTest Labs"],
+  lab_services: ["devtools", "Lab Services"],
+  generic: ["general", "Azure Resource"]
 };
+
+export const ICONS = Object.fromEntries(Object.entries(ICON_DEFS).map(([key, [category, name]]) =>
+  [key, { category, name, svg: OFFICIAL_ICONS[key] }]));
