@@ -5,6 +5,10 @@
 [![CI](https://github.com/mchittineni/tf-arch-diagram-generator/actions/workflows/ci.yml/badge.svg)](https://github.com/mchittineni/tf-arch-diagram-generator/actions/workflows/ci.yml)
 [![node](https://img.shields.io/node/v/tf-arch-diagram-generator?logo=nodedotjs)](https://nodejs.org/en/about/previous-releases)
 [![license](https://img.shields.io/npm/l/tf-arch-diagram-generator)](LICENSE)
+[![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+
+[![Buy me a coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=000000)](https://buymeacoffee.com/mchittineni)
+[![GitHub Sponsors](https://img.shields.io/badge/Sponsor-24292F?style=for-the-badge&logo=githubsponsors&logoColor=EA4AAA)](https://github.com/sponsors/mchittineni)
 
 Turn any Terraform plan into an interactive cloud architecture diagram — for **AWS**, **Google Cloud** and **Azure**, including plans that span all three.
 
